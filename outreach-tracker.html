@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Surface Labs — Outreach Tracker</title>
+<title>Surface Labs — Outreach Center</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Familjen+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -487,16 +487,16 @@
 <header>
   <div class="logo-area">
     <div class="logo-pill">Surface Labs</div>
-    <div class="logo-title">Outreach Tracker</div>
-    <div class="logo-sep">/</div>
-    <div class="logo-sub">50-contact campaign</div>
+    <div class="logo-title">Outreach Center</div>
   </div>
   <div class="header-actions">
     <nav class="page-switch" aria-label="Page switcher">
-      <a href="/index.html">Command Center</a>
-      <a class="active" href="/outreach-tracker.html">Outreach Tracker</a>
+      <a href="/index.html">Metric Center</a>
+      <a class="active" href="/outreach-tracker.html">Outreach Center</a>
     </nav>
+    <button class="btn-ghost" onclick="triggerImport()">↑ Import CSV</button>
     <button class="btn-ghost" onclick="exportCSV()">↓ Export CSV</button>
+    <input id="csv-input" type="file" accept=".csv,text/csv" style="display:none" onchange="handleImport(this.files)">
     <button class="btn-add" onclick="openAddModal()">+ Add Contact</button>
   </div>
 </header>
@@ -959,7 +959,7 @@ function renderTable() {
   const list = getFiltered();
   const tbody = document.getElementById('contact-table');
   if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No contacts yet</div><div class="empty-sub">// Add your 50 outreach targets to start tracking</div><button class="btn-add" onclick="openAddModal()">+ Add First Contact</button></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No contacts yet</div><div class="empty-sub">// Add your outreach targets to start tracking</div><button class="btn-add" onclick="openAddModal()">+ Add First Contact</button></div></td></tr>`;
     return;
   }
 
@@ -1198,9 +1198,117 @@ function exportCSV() {
   const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-  a.download = `outreach-tracker-${todayStr()}.csv`;
+  a.download = `outreach-center-${todayStr()}.csv`;
   a.click();
   showToast('CSV exported');
+}
+
+// ─── IMPORT CSV ───
+function triggerImport() {
+  document.getElementById('csv-input').click();
+}
+
+function handleImport(files) {
+  const file = files && files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const text = reader.result || '';
+    const { headers, rows } = parseCSV(text);
+    if (!headers.length) { showToast('CSV missing headers'); return; }
+
+    const idx = indexHeaders(headers);
+    let added = 0, updated = 0, skipped = 0;
+
+    rows.forEach(r => {
+      const name = (getCell(r, idx, ['name']) || '').trim();
+      const company = (getCell(r, idx, ['company']) || '').trim();
+      if (!name || !company) { skipped++; return; }
+
+      const data = {
+        name, company,
+        title: (getCell(r, idx, ['title']) || '').trim(),
+        url: (getCell(r, idx, ['url','linkedin / profile url','profile url']) || '').trim(),
+        channel: (getCell(r, idx, ['channel']) || 'LinkedIn').trim() || 'LinkedIn',
+        status: normalizeStatus(getCell(r, idx, ['status']) || 'new'),
+        lastDate: (getCell(r, idx, ['last contact','last contact date','last date']) || '').trim(),
+        followupNum: parseInt(getCell(r, idx, ['follow-up #','followup #','follow-up','followup','follow-up count'])) || 0,
+        connection: (getCell(r, idx, ['connection','connection type']) || '').trim(),
+        value: parseFloat(getCell(r, idx, ['deal value','acv','deal value (acv $)','value']) || 0) || 0,
+        message: (getCell(r, idx, ['message','message sent / context']) || '').trim(),
+        notes: (getCell(r, idx, ['notes','their response']) || '').trim(),
+      };
+
+      const existing = contacts.find(c => c.name.toLowerCase() === name.toLowerCase() && c.company.toLowerCase() === company.toLowerCase());
+      if (existing) {
+        Object.keys(data).forEach(k => { if (data[k] !== '' && data[k] !== null && data[k] !== undefined) existing[k] = data[k]; });
+        updated++;
+      } else {
+        data.id = Date.now() + Math.floor(Math.random()*1000);
+        contacts.unshift(data);
+        added++;
+      }
+    });
+
+    saveData(); render();
+    showToast(`Imported ${added} added · ${updated} updated · ${skipped} skipped`);
+  };
+  reader.readAsText(file);
+  file.value = '';
+}
+
+function parseCSV(text) {
+  const rows = [];
+  let row = [], cur = '', inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    const next = text[i+1];
+    if (ch === '"' && inQuotes && next === '"') { cur += '"'; i++; continue; }
+    if (ch === '"') { inQuotes = !inQuotes; continue; }
+    if (ch === ',' && !inQuotes) { row.push(cur); cur = ''; continue; }
+    if ((ch === '\n' || ch === '\r') && !inQuotes) {
+      if (ch === '\r' && next === '\n') i++;
+      row.push(cur); cur = '';
+      if (row.length > 1 || row[0] !== '') rows.push(row);
+      row = [];
+      continue;
+    }
+    cur += ch;
+  }
+  if (cur.length || row.length) { row.push(cur); rows.push(row); }
+  const headers = (rows.shift() || []).map(h => h.trim());
+  return { headers, rows };
+}
+
+function indexHeaders(headers) {
+  const idx = {};
+  headers.forEach((h, i) => {
+    const key = h.toLowerCase().replace(/\s+/g, ' ').trim();
+    idx[key] = i;
+  });
+  return idx;
+}
+
+function getCell(row, idx, keys) {
+  for (const k of keys) {
+    const key = k.toLowerCase().replace(/\s+/g, ' ').trim();
+    if (idx[key] !== undefined) return row[idx[key]] || '';
+  }
+  return '';
+}
+
+function normalizeStatus(s) {
+  const v = String(s || '').toLowerCase().trim();
+  if (!v) return 'new';
+  if (v.includes('not sent')) return 'new';
+  if (v.includes('sent')) return 'sent';
+  if (v.includes('replied')) return 'replied';
+  if (v.includes('follow')) return 'followup';
+  if (v.includes('overdue')) return 'overdue';
+  if (v.includes('meeting')) return 'meeting';
+  if (v.includes('dead') || v.includes('lost')) return 'dead';
+  if (v.includes('won') || v.includes('closed')) return 'won';
+  return v;
 }
 
 // ─── HELPERS ───

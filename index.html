@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Surface Labs — SDR Command Center</title>
+<title>Surface Labs — Metric Center</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -500,13 +500,13 @@
     <div class="logo-mark">SL</div>
     <div>
       <div class="logo-text">Surface Labs</div>
-      <div class="logo-sub">SDR Command Center</div>
+      <div class="logo-sub">SDR Metric Center</div>
     </div>
   </div>
   <div class="header-right">
     <nav class="page-switch" aria-label="Page switcher">
-      <a class="active" href="/index.html">Command Center</a>
-      <a href="/outreach-tracker.html">Outreach Tracker</a>
+      <a class="active" href="/index.html">Metric Center</a>
+      <a href="/outreach-tracker.html">Outreach Center</a>
     </nav>
     <div class="period-selector">
       <button class="period-btn" onclick="setPeriod('week',this)">Week</button>
@@ -825,12 +825,20 @@ const STATE = {
   period: 'month',
   filter: 'all',
 };
+let outreachContacts = [];
 
 // Load from localStorage
 function loadState() {
   try {
     const saved = localStorage.getItem('sdr_activities');
     if (saved) STATE.activities = JSON.parse(saved);
+  } catch(e) {}
+}
+
+function loadOutreachContacts() {
+  try {
+    const saved = localStorage.getItem('outreach_contacts');
+    if (saved) outreachContacts = JSON.parse(saved);
   } catch(e) {}
 }
 
@@ -894,9 +902,35 @@ function setPeriod(p, btn) {
   render();
 }
 
+function getCombinedActivities() {
+  const outreachActs = (outreachContacts || []).map(c => {
+    const status = (c.status || 'new').toLowerCase();
+    let type = 'outreach';
+    if (status === 'replied') type = 'response';
+    else if (status === 'meeting') type = 'meeting';
+    else if (status === 'won') type = 'closed-won';
+    else if (status === 'dead') type = 'closed-lost';
+    else if (['new','sent','followup','overdue'].includes(status)) type = 'outreach';
+
+    const date = c.lastDate || new Date().toISOString().split('T')[0];
+    return {
+      id: `oc-${c.id}`,
+      company: c.company || '—',
+      contact: c.name || '',
+      type,
+      value: parseFloat(c.value) || 0,
+      source: c.channel || 'Outreach Center',
+      date,
+      notes: c.notes || '',
+      week: getWeekLabel(new Date(date + 'T00:00:00'))
+    };
+  });
+  return [...STATE.activities, ...outreachActs];
+}
+
 function getFilteredActivities() {
   const now = new Date();
-  return STATE.activities.filter(a => {
+  return getCombinedActivities().filter(a => {
     const d = new Date(a.date + 'T00:00:00');
     if (STATE.period === 'week') {
       const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 7);
@@ -931,7 +965,7 @@ function render() {
   renderPipeline(acts);
   renderRing(acts);
   renderTable(acts);
-  renderBarChart();
+  renderBarChart(acts);
   renderKPIs(acts);
 }
 
@@ -955,7 +989,7 @@ function renderHeroStats(acts) {
   document.getElementById('delta-active').textContent = fmtMoney(activePipe);
 
   // Revenue
-  const totalWon = STATE.activities.filter(a => a.type === 'closed-won').reduce((s,a) => s + a.value, 0);
+  const totalWon = acts.filter(a => a.type === 'closed-won').reduce((s,a) => s + a.value, 0);
   const pct = Math.min(100, Math.round(totalWon/800000*100));
   document.getElementById('rev-value').textContent = fmtMoney(totalWon);
   document.getElementById('rev-sub').textContent = `${fmtMoney(totalWon)} closed won · ${pct}% to goal`;
@@ -1125,7 +1159,7 @@ function badgeColor(type) {
 }
 
 // ─── BAR CHART ───
-function renderBarChart() {
+function renderBarChart(acts) {
   const weeks = [];
   for (let i = 7; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i*7);
@@ -1141,7 +1175,7 @@ function renderBarChart() {
 
   // Simplified: bucket by week index
   const buckets = Array(8).fill(null).map(() => ({ outreach:0, meetings:0, demos:0 }));
-  STATE.activities.forEach(a => {
+  acts.forEach(a => {
     const d = new Date(a.date + 'T00:00:00');
     const now = new Date();
     const weekIdx = Math.floor((now - d) / (7 * 86400000));
@@ -1248,7 +1282,16 @@ function showToast(msg, type) {
 
 // ─── INIT ───
 loadState();
+loadOutreachContacts();
 render();
+
+// Keep metrics in sync if Outreach Center updates in another tab
+window.addEventListener('storage', (e) => {
+  if (e.key === 'outreach_contacts') {
+    loadOutreachContacts();
+    render();
+  }
+});
 </script>
 </body>
 </html>
