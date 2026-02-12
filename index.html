@@ -402,6 +402,25 @@
   .kpi-status.at-risk { color: var(--warn); }
   .kpi-status.behind { color: var(--danger); }
 
+  /* ─── CAMPAIGN VOLUME ─── */
+  .campaign-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+  }
+  .campaign-list { display: flex; flex-direction: column; gap: 10px; }
+  .campaign-item { display: grid; grid-template-columns: 160px 1fr 60px; gap: 12px; align-items: center; }
+  .campaign-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text2);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .campaign-bar { height: 8px; background: var(--bg3); border-radius: 999px; overflow: hidden; }
+  .campaign-fill { height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent)); border-radius: 999px; }
+  .campaign-count { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text); text-align: right; }
+
   /* ─── MODAL ─── */
   .modal-overlay {
     position: fixed; inset: 0; z-index: 1000;
@@ -749,6 +768,11 @@
     </div>
   </div>
 
+  <div class="section-label">Campaign Volume</div>
+  <div class="campaign-card">
+    <div class="campaign-list" id="campaign-list"></div>
+  </div>
+
 </div>
 </div>
 
@@ -967,6 +991,7 @@ function render() {
   renderTable(acts);
   renderBarChart(acts);
   renderKPIs(acts);
+  renderCampaigns();
 }
 
 function renderHeroStats(acts) {
@@ -1250,6 +1275,34 @@ function setKPICustom(id, val, target) {
   if (val >= target) { statusEl.textContent = '✓ On Track'; statusEl.className = 'kpi-status on-track'; }
   else if (val >= target * 0.7) { statusEl.textContent = '⚠ At Risk'; statusEl.className = 'kpi-status at-risk'; }
   else { statusEl.textContent = '✗ Behind'; statusEl.className = 'kpi-status behind'; }
+}
+
+// ─── CAMPAIGN VOLUME ───
+function renderCampaigns() {
+  const listEl = document.getElementById('campaign-list');
+  if (!listEl) return;
+  const map = {};
+  (outreachContacts || []).forEach(c => {
+    const raw = (c.campaign || '').trim();
+    const tags = raw ? raw.split(',').map(t => t.trim()).filter(Boolean) : ['Unlabeled'];
+    tags.forEach(t => { map[t] = (map[t] || 0) + 1; });
+  });
+  const entries = Object.entries(map);
+  if (entries.length === 0) {
+    listEl.innerHTML = `<div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3)">No outreach campaigns yet</div>`;
+    return;
+  }
+  entries.sort((a,b) => b[1] - a[1]);
+  const max = Math.max(...entries.map(e => e[1]));
+  listEl.innerHTML = entries.map(([name, count]) => {
+    const pct = Math.round((count / max) * 100);
+    return `
+      <div class="campaign-item">
+        <div class="campaign-name" title="${name}">${name}</div>
+        <div class="campaign-bar"><div class="campaign-fill" style="width:${pct}%"></div></div>
+        <div class="campaign-count">${count}</div>
+      </div>`;
+  }).join('');
 }
 
 // ─── UTILS ───
