@@ -75,6 +75,19 @@
   .logo-sub { font-family: 'DM Mono', monospace; font-size: 11px; color: #888; letter-spacing: 0.05em; }
 
   .header-actions { display: flex; align-items: center; gap: 10px; }
+  .page-switch {
+    display: flex; gap: 4px; padding: 4px;
+    border: 1px solid #2a2a2a; border-radius: 6px;
+    background: rgba(255,255,255,0.06);
+  }
+  .page-switch a {
+    padding: 5px 10px; border-radius: 5px;
+    font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: #bbb; text-decoration: none;
+    transition: all 0.15s;
+  }
+  .page-switch a.active { background: var(--accent); color: #fff; }
+  .page-switch a:hover:not(.active) { color: #fff; }
 
   .btn-add {
     background: var(--accent); color: #fff; border: none;
@@ -479,6 +492,10 @@
     <div class="logo-sub">50-contact campaign</div>
   </div>
   <div class="header-actions">
+    <nav class="page-switch" aria-label="Page switcher">
+      <a href="/index.html">Command Center</a>
+      <a class="active" href="/outreach-tracker.html">Outreach Tracker</a>
+    </nav>
     <button class="btn-ghost" onclick="exportCSV()">↓ Export CSV</button>
     <button class="btn-add" onclick="openAddModal()">+ Add Contact</button>
   </div>

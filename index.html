@@ -84,6 +84,23 @@
   .logo-sub { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--accent); letter-spacing: 0.15em; text-transform: uppercase; margin-top: 1px; }
 
   .header-right { display: flex; align-items: center; gap: 16px; }
+  .page-switch {
+    display: flex; gap: 6px; padding: 4px;
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .page-switch a {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text2); text-decoration: none;
+    transition: all 0.2s;
+  }
+  .page-switch a.active {
+    background: var(--accent2); color: #000;
+    box-shadow: var(--glow2);
+  }
+  .page-switch a:hover:not(.active) { color: var(--text); }
   .period-selector {
     display: flex; gap: 4px;
     background: var(--bg3); border: 1px solid var(--border);
@@ -487,6 +504,10 @@
     </div>
   </div>
   <div class="header-right">
+    <nav class="page-switch" aria-label="Page switcher">
+      <a class="active" href="/index.html">Command Center</a>
+      <a href="/outreach-tracker.html">Outreach Tracker</a>
+    </nav>
     <div class="period-selector">
       <button class="period-btn" onclick="setPeriod('week',this)">Week</button>
       <button class="period-btn active" onclick="setPeriod('month',this)">Month</button>
