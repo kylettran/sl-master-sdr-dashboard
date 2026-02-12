@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "*.html", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/outreach-tracker", "dest": "/outreach-tracker.html" },
+    { "src": "/outreach-tracker.html", "dest": "/outreach-tracker.html" },
+    { "src": "/dashboard", "dest": "/index.html" },
+    { "src": "/", "dest": "/index.html" }
+  ]
+}

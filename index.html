@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Surface Labs — SDR Command Center</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #090b0f;
+    --bg2: #0e1117;
+    --bg3: #141820;
+    --border: #1e2530;
+    --border2: #252d3a;
+    --accent: #00e5a0;
+    --accent2: #0094ff;
+    --accent3: #ff6b35;
+    --warn: #ffc107;
+    --danger: #ff4757;
+    --text: #e8edf5;
+    --text2: #8892a4;
+    --text3: #4a5568;
+    --card-bg: #0d1119;
+    --glow: 0 0 20px rgba(0, 229, 160, 0.15);
+    --glow2: 0 0 20px rgba(0, 148, 255, 0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,160,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,160,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Glow orbs */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .orb1 { width: 500px; height: 500px; background: rgba(0,229,160,0.04); top: -100px; right: -100px; }
+  .orb2 { width: 400px; height: 400px; background: rgba(0,148,255,0.04); bottom: 100px; left: -100px; }
+
+  .app { position: relative; z-index: 1; }
+
+  /* ─── HEADER ─── */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(9,11,15,0.8);
+    backdrop-filter: blur(10px);
+    position: sticky; top: 0; z-index: 100;
+  }
+
+  .logo-area { display: flex; align-items: center; gap: 14px; }
+  .logo-mark {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px; font-weight: 500; color: #000;
+  }
+  .logo-text { font-size: 15px; font-weight: 700; letter-spacing: 0.05em; }
+  .logo-sub { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--accent); letter-spacing: 0.15em; text-transform: uppercase; margin-top: 1px; }
+
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  .period-selector {
+    display: flex; gap: 4px;
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 8px; padding: 4px;
+  }
+  .period-btn {
+    padding: 5px 12px; border-radius: 5px; border: none;
+    font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 600;
+    cursor: pointer; color: var(--text2); background: transparent;
+    transition: all 0.2s;
+  }
+  .period-btn.active { background: var(--accent); color: #000; }
+  .period-btn:hover:not(.active) { color: var(--text); }
+
+  .add-btn {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 18px; border-radius: 8px;
+    background: var(--accent); color: #000; border: none;
+    font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: all 0.2s; letter-spacing: 0.03em;
+  }
+  .add-btn:hover { background: #00ffb3; transform: translateY(-1px); box-shadow: var(--glow); }
+
+  /* ─── MAIN LAYOUT ─── */
+  .main { padding: 28px 32px; max-width: 1600px; margin: 0 auto; }
+
+  /* ─── HERO STATS ─── */
+  .hero-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr 2fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .stat-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+  .stat-card::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 2px;
+  }
+  .stat-card.green::before { background: linear-gradient(90deg, transparent, var(--accent), transparent); }
+  .stat-card.blue::before { background: linear-gradient(90deg, transparent, var(--accent2), transparent); }
+  .stat-card.orange::before { background: linear-gradient(90deg, transparent, var(--accent3), transparent); }
+  .stat-card.warn::before { background: linear-gradient(90deg, transparent, var(--warn), transparent); }
+  .stat-card.danger::before { background: linear-gradient(90deg, transparent, var(--danger), transparent); }
+
+  .stat-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--text2); margin-bottom: 10px;
+  }
+  .stat-value {
+    font-size: 38px; font-weight: 800; line-height: 1;
+    margin-bottom: 6px;
+  }
+  .stat-card.green .stat-value { color: var(--accent); }
+  .stat-card.blue .stat-value { color: var(--accent2); }
+  .stat-card.orange .stat-value { color: var(--accent3); }
+  .stat-card.warn .stat-value { color: var(--warn); }
+  .stat-card.danger .stat-value { color: var(--danger); }
+
+  .stat-delta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: var(--text2);
+  }
+  .stat-delta span { color: var(--accent); }
+  .stat-delta span.neg { color: var(--danger); }
+
+  /* Revenue target card */
+  .revenue-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .revenue-card::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+  }
+  .rev-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+  .rev-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text2); }
+  .rev-target { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text2); }
+  .rev-target strong { color: var(--text); }
+  .rev-value { font-size: 32px; font-weight: 800; color: var(--accent); margin-bottom: 4px; }
+  .rev-sub { font-size: 12px; color: var(--text2); margin-bottom: 14px; }
+
+  .progress-track {
+    height: 8px; background: var(--bg3); border-radius: 99px; overflow: hidden; margin-bottom: 6px;
+  }
+  .progress-fill {
+    height: 100%; border-radius: 99px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+    position: relative;
+  }
+  .progress-fill::after {
+    content: ''; position: absolute; right: 0; top: -2px;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: #fff; box-shadow: 0 0 8px var(--accent);
+  }
+  .progress-labels {
+    display: flex; justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text3);
+  }
+
+  .sprint-info {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;
+  }
+  .sprint-tag {
+    padding: 3px 10px; border-radius: 99px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    border: 1px solid;
+  }
+  .sprint-tag.active { border-color: var(--accent); color: var(--accent); background: rgba(0,229,160,0.06); }
+  .sprint-tag.pending { border-color: var(--border2); color: var(--text3); }
+
+  /* ─── GRID ROW 2 ─── */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  /* ─── FUNNEL ─── */
+  .funnel-card {
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px;
+  }
+  .card-header {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
+  }
+  .card-title { font-size: 14px; font-weight: 700; letter-spacing: 0.03em; }
+  .card-badge {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    padding: 3px 9px; border-radius: 99px;
+    background: rgba(0,229,160,0.08); color: var(--accent); border: 1px solid rgba(0,229,160,0.2);
+  }
+
+  .funnel-stage {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
+  }
+  .funnel-label {
+    width: 110px; font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: var(--text2); text-transform: uppercase; letter-spacing: 0.08em; flex-shrink: 0;
+  }
+  .funnel-bar-wrap { flex: 1; height: 28px; background: var(--bg3); border-radius: 4px; overflow: hidden; position: relative; }
+  .funnel-bar {
+    height: 100%; border-radius: 4px;
+    display: flex; align-items: center; padding-left: 10px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500;
+    transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+    position: relative; min-width: 40px;
+  }
+  .funnel-conv {
+    width: 42px; text-align: right;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text3); flex-shrink: 0;
+  }
+
+  /* ─── PIPELINE ─── */
+  .pipeline-card {
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px;
+  }
+
+  .pipeline-stage {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+  }
+  .pipeline-stage:last-child { border-bottom: none; }
+  .pipe-left { display: flex; align-items: center; gap: 10px; }
+  .pipe-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .pipe-name { font-size: 13px; font-weight: 600; }
+  .pipe-count { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text2); }
+  .pipe-value { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500; }
+
+  /* ─── ACTIVITY RING ─── */
+  .activity-card {
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px;
+    display: flex; flex-direction: column;
+  }
+  .ring-wrap { display: flex; justify-content: center; align-items: center; flex: 1; padding: 10px 0; }
+  svg.ring { transform: rotate(-90deg); }
+  .ring-circle { transition: stroke-dashoffset 1s cubic-bezier(0.4,0,0.2,1); }
+  .ring-center {
+    position: absolute; text-align: center;
+  }
+  .ring-container { position: relative; display: inline-flex; align-items: center; justify-content: center; }
+  .ring-center-val { font-size: 26px; font-weight: 800; color: var(--accent); line-height: 1; }
+  .ring-center-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text2); letter-spacing: 0.1em; text-transform: uppercase; }
+  .ring-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+  .ring-leg-item { display: flex; align-items: center; gap: 6px; }
+  .ring-leg-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+  .ring-leg-text { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text2); }
+  .ring-leg-val { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text); font-weight: 500; }
+
+  /* ─── ROW 3: ACTIVITY TABLE + WEEKLY CHART ─── */
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 2fr 1.2fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  /* ─── ACTIVITY LOG TABLE ─── */
+  .table-card {
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+  }
+  .table-header-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+  }
+  .table-filter { display: flex; gap: 6px; }
+  .filter-chip {
+    padding: 4px 10px; border-radius: 99px; border: 1px solid var(--border2);
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; cursor: pointer;
+    color: var(--text2); background: transparent; transition: all 0.15s;
+  }
+  .filter-chip.active { border-color: var(--accent); color: var(--accent); background: rgba(0,229,160,0.06); }
+  .filter-chip:hover:not(.active) { border-color: var(--border2); color: var(--text); }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    padding: 10px 20px; text-align: left;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3);
+    border-bottom: 1px solid var(--border);
+    font-weight: 400;
+  }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; cursor: pointer; }
+  tbody tr:hover { background: rgba(255,255,255,0.02); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody td {
+    padding: 12px 20px;
+    font-size: 13px;
+  }
+  .td-company { font-weight: 600; }
+  .td-contact { font-size: 11px; color: var(--text2); margin-top: 1px; font-family: 'JetBrains Mono', monospace; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 99px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 500;
+    border: 1px solid;
+  }
+  .badge-dot { width: 5px; height: 5px; border-radius: 50%; }
+  .badge.discovery { border-color: rgba(0,148,255,0.3); color: var(--accent2); background: rgba(0,148,255,0.06); }
+  .badge.demo { border-color: rgba(255,107,53,0.3); color: var(--accent3); background: rgba(255,107,53,0.06); }
+  .badge.proposal { border-color: rgba(255,193,7,0.3); color: var(--warn); background: rgba(255,193,7,0.06); }
+  .badge.closed-won { border-color: rgba(0,229,160,0.3); color: var(--accent); background: rgba(0,229,160,0.06); }
+  .badge.closed-lost { border-color: rgba(255,71,87,0.3); color: var(--danger); background: rgba(255,71,87,0.06); }
+  .badge.response { border-color: rgba(150,100,255,0.3); color: #a78bfa; background: rgba(150,100,255,0.06); }
+  .badge.outreach { border-color: rgba(100,150,200,0.3); color: #93c5fd; background: rgba(100,150,200,0.06); }
+
+  .td-value { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500; }
+  .td-date { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text2); }
+  .td-source { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text3); }
+
+  /* ─── WEEKLY BARS ─── */
+  .weekly-card {
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px;
+  }
+  .bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 140px; margin: 16px 0 8px; }
+  .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+  .bar-stack { width: 100%; border-radius: 4px 4px 0 0; transition: height 0.8s cubic-bezier(0.4,0,0.2,1); min-height: 3px; }
+  .bar-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text3); margin-top: 4px; }
+  .bar-val { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text2); }
+  .chart-legend { display: flex; gap: 12px; flex-wrap: wrap; }
+  .chart-leg-item { display: flex; align-items: center; gap: 5px; }
+  .chart-leg-dot { width: 8px; height: 8px; border-radius: 2px; }
+  .chart-leg-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text2); }
+
+  /* ─── ROW 4: KPI HEALTH ─── */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .kpi-card {
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px;
+  }
+  .kpi-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); margin-bottom: 8px; }
+  .kpi-value { font-size: 22px; font-weight: 800; margin-bottom: 2px; }
+  .kpi-target { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text3); margin-bottom: 8px; }
+  .kpi-bar-track { height: 4px; background: var(--bg3); border-radius: 99px; overflow: hidden; }
+  .kpi-bar-fill { height: 100%; border-radius: 99px; transition: width 0.8s; }
+  .kpi-status { font-family: 'JetBrains Mono', monospace; font-size: 9px; margin-top: 6px; }
+  .kpi-status.on-track { color: var(--accent); }
+  .kpi-status.at-risk { color: var(--warn); }
+  .kpi-status.behind { color: var(--danger); }
+
+  /* ─── MODAL ─── */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--bg2); border: 1px solid var(--border2); border-radius: 16px;
+    padding: 28px; width: 480px; max-width: 95vw;
+    transform: translateY(20px); transition: transform 0.2s;
+    position: relative;
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+  .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+  .modal-sub { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text2); margin-bottom: 20px; }
+  .modal-close {
+    position: absolute; top: 18px; right: 18px;
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text2); padding: 4px 10px; cursor: pointer; font-size: 13px; font-family: 'Syne', sans-serif;
+  }
+  .modal-close:hover { color: var(--text); }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: span 2; }
+  label { font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text2); }
+  input, select, textarea {
+    background: var(--bg3); border: 1px solid var(--border2); border-radius: 8px;
+    color: var(--text); padding: 9px 12px;
+    font-family: 'Syne', sans-serif; font-size: 13px;
+    outline: none; transition: border-color 0.15s;
+    width: 100%;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,229,160,0.1); }
+  select option { background: var(--bg3); }
+  textarea { resize: none; height: 70px; }
+
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+  .btn-secondary {
+    padding: 9px 18px; border-radius: 8px; border: 1px solid var(--border2);
+    background: transparent; color: var(--text2); font-family: 'Syne', sans-serif;
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+  }
+  .btn-secondary:hover { color: var(--text); border-color: var(--border); }
+  .btn-primary {
+    padding: 9px 22px; border-radius: 8px; border: none;
+    background: var(--accent); color: #000; font-family: 'Syne', sans-serif;
+    font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.15s;
+  }
+  .btn-primary:hover { background: #00ffb3; box-shadow: var(--glow); }
+
+  /* ─── TOAST ─── */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px; z-index: 2000;
+    background: var(--bg2); border: 1px solid var(--accent); border-radius: 10px;
+    padding: 12px 20px; display: flex; align-items: center; gap: 10px;
+    font-size: 13px; box-shadow: var(--glow);
+    transform: translateY(20px); opacity: 0;
+    transition: all 0.25s; pointer-events: none;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+
+  /* ─── SECTION LABEL ─── */
+  .section-label {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.15em; color: var(--text3);
+    margin-bottom: 12px; display: flex; align-items: center; gap: 10px;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 99px; }
+
+  @media (max-width: 1200px) {
+    .hero-row { grid-template-columns: repeat(2, 1fr); }
+    .revenue-card { grid-column: span 2; }
+    .grid-2 { grid-template-columns: 1fr; }
+    .grid-3 { grid-template-columns: 1fr; }
+    .kpi-row { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="app">
+
+<!-- ─── HEADER ─── -->
+<header>
+  <div class="logo-area">
+    <div class="logo-mark">SL</div>
+    <div>
+      <div class="logo-text">Surface Labs</div>
+      <div class="logo-sub">SDR Command Center</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="period-selector">
+      <button class="period-btn" onclick="setPeriod('week',this)">Week</button>
+      <button class="period-btn active" onclick="setPeriod('month',this)">Month</button>
+      <button class="period-btn" onclick="setPeriod('sprint',this)">Sprint</button>
+      <button class="period-btn" onclick="setPeriod('all',this)">All Time</button>
+    </div>
+    <button class="add-btn" onclick="openModal()">+ Log Activity</button>
+  </div>
+</header>
+
+<!-- ─── MAIN ─── -->
+<div class="main">
+
+  <div class="section-label">Pipeline Overview</div>
+
+  <!-- Hero Row -->
+  <div class="hero-row">
+    <div class="stat-card green">
+      <div class="stat-label">Meetings Booked</div>
+      <div class="stat-value" id="stat-meetings">0</div>
+      <div class="stat-delta">vs last period <span id="delta-meetings">+0</span></div>
+    </div>
+    <div class="stat-card blue">
+      <div class="stat-label">Demos Completed</div>
+      <div class="stat-value" id="stat-demos">0</div>
+      <div class="stat-delta">vs last period <span id="delta-demos">+0</span></div>
+    </div>
+    <div class="stat-card orange">
+      <div class="stat-label">Responses</div>
+      <div class="stat-value" id="stat-responses">0</div>
+      <div class="stat-delta">reply rate <span id="delta-responses">0%</span></div>
+    </div>
+    <div class="stat-card warn">
+      <div class="stat-label">Active Deals</div>
+      <div class="stat-value" id="stat-active">0</div>
+      <div class="stat-delta">in pipeline <span id="delta-active">$0</span></div>
+    </div>
+    <div class="revenue-card">
+      <div class="rev-header">
+        <div>
+          <div class="rev-label">Revenue Progress — $800K Target</div>
+          <div class="rev-value" id="rev-value">$0</div>
+          <div class="rev-sub" id="rev-sub">$0 closed won · 0% to goal</div>
+        </div>
+        <div class="rev-target">Target: <strong>$800,000</strong><br><span id="days-left" style="color:var(--warn);font-size:11px;">120 days remaining</span></div>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="rev-bar" style="width:0%"></div>
+      </div>
+      <div class="progress-labels">
+        <span>$0</span><span>$200K</span><span>$400K</span><span>$600K</span><span>$800K</span>
+      </div>
+      <div class="sprint-info" id="sprint-tags">
+        <div class="sprint-tag active">Sprint 1 · Active</div>
+        <div class="sprint-tag pending">Sprint 2</div>
+        <div class="sprint-tag pending">Sprint 3</div>
+        <div class="sprint-tag pending">Sprint 4</div>
+        <div class="sprint-tag pending">Sprint 5</div>
+        <div class="sprint-tag pending">Sprint 6</div>
+        <div class="sprint-tag pending">Sprint 7</div>
+        <div class="sprint-tag pending">Sprint 8</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-label">Funnel & Pipeline</div>
+
+  <!-- Grid 2 -->
+  <div class="grid-2">
+    <!-- Funnel -->
+    <div class="funnel-card">
+      <div class="card-header">
+        <div class="card-title">Conversion Funnel</div>
+        <div class="card-badge" id="funnel-badge">0 total</div>
+      </div>
+      <div id="funnel-stages">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+    <!-- Pipeline by Stage -->
+    <div class="pipeline-card">
+      <div class="card-header">
+        <div class="card-title">Pipeline Stages</div>
+        <div class="card-badge" id="pipe-total">$0</div>
+      </div>
+      <div id="pipeline-stages"></div>
+    </div>
+
+    <!-- Activity Donut -->
+    <div class="activity-card">
+      <div class="card-header">
+        <div class="card-title">Activity Breakdown</div>
+      </div>
+      <div class="ring-wrap">
+        <div class="ring-container">
+          <svg class="ring" width="120" height="120" viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="50" fill="none" stroke="#1e2530" stroke-width="12"/>
+            <circle id="ring-arc1" class="ring-circle" cx="60" cy="60" r="50" fill="none" stroke="#00e5a0" stroke-width="12" stroke-dasharray="314" stroke-dashoffset="314" stroke-linecap="round"/>
+            <circle id="ring-arc2" class="ring-circle" cx="60" cy="60" r="50" fill="none" stroke="#0094ff" stroke-width="12" stroke-dasharray="314" stroke-dashoffset="314" stroke-linecap="round"/>
+            <circle id="ring-arc3" class="ring-circle" cx="60" cy="60" r="50" fill="none" stroke="#ff6b35" stroke-width="12" stroke-dasharray="314" stroke-dashoffset="314" stroke-linecap="round"/>
+          </svg>
+          <div class="ring-center" style="position:absolute;text-align:center;">
+            <div class="ring-center-val" id="ring-total">0</div>
+            <div class="ring-center-label">activities</div>
+          </div>
+        </div>
+      </div>
+      <div class="ring-legend">
+        <div class="ring-leg-item">
+          <div class="ring-leg-dot" style="background:var(--accent)"></div>
+          <div>
+            <div class="ring-leg-text">Outreach</div>
+            <div class="ring-leg-val" id="leg-outreach">0</div>
+          </div>
+        </div>
+        <div class="ring-leg-item">
+          <div class="ring-leg-dot" style="background:var(--accent2)"></div>
+          <div>
+            <div class="ring-leg-text">Meetings</div>
+            <div class="ring-leg-val" id="leg-meetings">0</div>
+          </div>
+        </div>
+        <div class="ring-leg-item">
+          <div class="ring-leg-dot" style="background:var(--accent3)"></div>
+          <div>
+            <div class="ring-leg-text">Responses</div>
+            <div class="ring-leg-val" id="leg-responses">0</div>
+          </div>
+        </div>
+        <div class="ring-leg-item">
+          <div class="ring-leg-dot" style="background:var(--warn)"></div>
+          <div>
+            <div class="ring-leg-text">Closed Won</div>
+            <div class="ring-leg-val" id="leg-won">0</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-label">Weekly Activity</div>
+
+  <!-- Grid 3 -->
+  <div class="grid-3">
+    <!-- Table -->
+    <div class="table-card">
+      <div class="table-header-row">
+        <div class="card-title">Activity Log</div>
+        <div class="table-filter">
+          <button class="filter-chip active" onclick="filterTable('all',this)">All</button>
+          <button class="filter-chip" onclick="filterTable('meeting',this)">Meetings</button>
+          <button class="filter-chip" onclick="filterTable('demo',this)">Demos</button>
+          <button class="filter-chip" onclick="filterTable('closed-won',this)">Won</button>
+          <button class="filter-chip" onclick="filterTable('closed-lost',this)">Lost</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Company</th>
+            <th>Type</th>
+            <th>Value</th>
+            <th>Source</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody id="activity-table">
+          <tr>
+            <td colspan="5" style="text-align:center;padding:32px;color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:12px;">
+              No activities logged yet.<br>Click "+ Log Activity" to get started.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Weekly Bar Chart -->
+    <div class="weekly-card">
+      <div class="card-header">
+        <div class="card-title">8-Week Activity</div>
+      </div>
+      <div class="bar-chart" id="bar-chart"></div>
+      <div class="chart-legend">
+        <div class="chart-leg-item">
+          <div class="chart-leg-dot" style="background:var(--accent)"></div>
+          <div class="chart-leg-label">Outreach</div>
+        </div>
+        <div class="chart-leg-item">
+          <div class="chart-leg-dot" style="background:var(--accent2)"></div>
+          <div class="chart-leg-label">Meetings</div>
+        </div>
+        <div class="chart-leg-item">
+          <div class="chart-leg-dot" style="background:var(--accent3)"></div>
+          <div class="chart-leg-label">Demos</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-label">KPI Health Check</div>
+
+  <!-- KPI Row -->
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-label">Outreach → Reply Rate</div>
+      <div class="kpi-value" id="kpi-reply" style="color:var(--accent)">0%</div>
+      <div class="kpi-target">Target: ≥15%</div>
+      <div class="kpi-bar-track"><div class="kpi-bar-fill" id="kpi-reply-bar" style="width:0%;background:var(--accent)"></div></div>
+      <div class="kpi-status on-track" id="kpi-reply-status">— No data</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Reply → Meeting Rate</div>
+      <div class="kpi-value" id="kpi-meetrate" style="color:var(--accent2)">0%</div>
+      <div class="kpi-target">Target: ≥30%</div>
+      <div class="kpi-bar-track"><div class="kpi-bar-fill" id="kpi-meetrate-bar" style="width:0%;background:var(--accent2)"></div></div>
+      <div class="kpi-status on-track" id="kpi-meetrate-status">— No data</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Meeting → Demo Rate</div>
+      <div class="kpi-value" id="kpi-demorate" style="color:var(--accent3)">0%</div>
+      <div class="kpi-target">Target: ≥50%</div>
+      <div class="kpi-bar-track"><div class="kpi-bar-fill" id="kpi-demorate-bar" style="width:0%;background:var(--accent3)"></div></div>
+      <div class="kpi-status on-track" id="kpi-demorate-status">— No data</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Demo → Close Rate</div>
+      <div class="kpi-value" id="kpi-closerate" style="color:var(--warn)">0%</div>
+      <div class="kpi-target">Target: ≥20%</div>
+      <div class="kpi-bar-track"><div class="kpi-bar-fill" id="kpi-closerate-bar" style="width:0%;background:var(--warn)"></div></div>
+      <div class="kpi-status on-track" id="kpi-closerate-status">— No data</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Avg Deal Size</div>
+      <div class="kpi-value" id="kpi-dealsize" style="color:var(--accent)">$0</div>
+      <div class="kpi-target">Target: $12,500+</div>
+      <div class="kpi-bar-track"><div class="kpi-bar-fill" id="kpi-dealsize-bar" style="width:0%;background:var(--accent)"></div></div>
+      <div class="kpi-status on-track" id="kpi-dealsize-status">— No data</div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ─── MODAL ─── -->
+<div class="modal-overlay" id="modal" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-title">Log Activity</div>
+    <div class="modal-sub">// Record every touchpoint, meeting, and outcome</div>
+    <button class="modal-close" onclick="closeModal()">✕ Close</button>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Company Name</label>
+        <input type="text" id="f-company" placeholder="Acme Corp">
+      </div>
+      <div class="form-group">
+        <label>Contact Name</label>
+        <input type="text" id="f-contact" placeholder="Jane Smith">
+      </div>
+      <div class="form-group">
+        <label>Activity Type</label>
+        <select id="f-type">
+          <option value="outreach">Outreach Sent</option>
+          <option value="response">Response Received</option>
+          <option value="meeting">Meeting Booked</option>
+          <option value="demo">Demo Completed</option>
+          <option value="proposal">Proposal Sent</option>
+          <option value="closed-won">Closed Won 🎉</option>
+          <option value="closed-lost">Closed Lost</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Deal Value (ARR $)</label>
+        <input type="number" id="f-value" placeholder="12500" min="0">
+      </div>
+      <div class="form-group">
+        <label>Source Channel</label>
+        <select id="f-source">
+          <option value="LinkedIn Warm">LinkedIn Warm</option>
+          <option value="Cold Email">Cold Email</option>
+          <option value="LinkedIn Cold">LinkedIn Cold</option>
+          <option value="Referral">Referral</option>
+          <option value="Inbound">Inbound</option>
+          <option value="Profile View">Profile View</option>
+          <option value="Content Lead">Content Lead</option>
+          <option value="Event">Event</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="f-date">
+      </div>
+      <div class="form-group full">
+        <label>Notes</label>
+        <textarea id="f-notes" placeholder="Key objections, next steps, context..."></textarea>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="logActivity()">Log Activity →</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">
+  <div class="toast-dot"></div>
+  <span id="toast-msg">Activity logged successfully</span>
+</div>
+
+<script>
+// ─── STATE ───
+const STATE = {
+  activities: [],
+  period: 'month',
+  filter: 'all',
+};
+
+// Load from localStorage
+function loadState() {
+  try {
+    const saved = localStorage.getItem('sdr_activities');
+    if (saved) STATE.activities = JSON.parse(saved);
+  } catch(e) {}
+}
+
+function saveState() {
+  try {
+    localStorage.setItem('sdr_activities', JSON.stringify(STATE.activities));
+  } catch(e) {}
+}
+
+// ─── MODAL ───
+function openModal() {
+  document.getElementById('modal').classList.add('open');
+  // Set today's date
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('f-date').value = today;
+}
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+}
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('modal')) closeModal();
+}
+
+function logActivity() {
+  const company = document.getElementById('f-company').value.trim();
+  const contact = document.getElementById('f-contact').value.trim();
+  const type = document.getElementById('f-type').value;
+  const value = parseFloat(document.getElementById('f-value').value) || 0;
+  const source = document.getElementById('f-source').value;
+  const date = document.getElementById('f-date').value;
+  const notes = document.getElementById('f-notes').value.trim();
+
+  if (!company) { showToast('Please enter a company name', 'error'); return; }
+  if (!date) { showToast('Please select a date', 'error'); return; }
+
+  const activity = {
+    id: Date.now(),
+    company, contact, type, value, source, date, notes,
+    week: getWeekLabel(new Date(date + 'T00:00:00'))
+  };
+
+  STATE.activities.unshift(activity);
+  saveState();
+  closeModal();
+  clearForm();
+  render();
+  showToast(type === 'closed-won' ? '🎉 Deal closed! Revenue updated.' : 'Activity logged successfully');
+}
+
+function clearForm() {
+  ['f-company','f-contact','f-value','f-notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-type').value = 'outreach';
+  document.getElementById('f-source').value = 'LinkedIn Warm';
+}
+
+// ─── PERIOD FILTER ───
+function setPeriod(p, btn) {
+  STATE.period = p;
+  document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+
+function getFilteredActivities() {
+  const now = new Date();
+  return STATE.activities.filter(a => {
+    const d = new Date(a.date + 'T00:00:00');
+    if (STATE.period === 'week') {
+      const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 7);
+      return d >= weekAgo;
+    }
+    if (STATE.period === 'month') {
+      const monthAgo = new Date(now); monthAgo.setDate(now.getDate() - 30);
+      return d >= monthAgo;
+    }
+    if (STATE.period === 'sprint') {
+      const sprintAgo = new Date(now); sprintAgo.setDate(now.getDate() - 14);
+      return d >= sprintAgo;
+    }
+    return true;
+  });
+}
+
+// ─── WEEK LABEL ───
+function getWeekLabel(date) {
+  const now = new Date();
+  const diff = Math.floor((now - date) / (7 * 86400000));
+  if (diff === 0) return 'This Wk';
+  if (diff === 1) return 'Wk -1';
+  return `Wk -${diff}`;
+}
+
+// ─── RENDER ───
+function render() {
+  const acts = getFilteredActivities();
+  renderHeroStats(acts);
+  renderFunnel(acts);
+  renderPipeline(acts);
+  renderRing(acts);
+  renderTable(acts);
+  renderBarChart();
+  renderKPIs(acts);
+}
+
+function renderHeroStats(acts) {
+  const meetings = acts.filter(a => a.type === 'meeting').length;
+  const demos = acts.filter(a => a.type === 'demo').length;
+  const responses = acts.filter(a => a.type === 'response').length;
+  const outreach = acts.filter(a => a.type === 'outreach').length;
+  const active = acts.filter(a => !['closed-won','closed-lost'].includes(a.type));
+  const activePipe = active.reduce((s,a) => s + a.value, 0);
+  const won = acts.filter(a => a.type === 'closed-won');
+  const wonVal = won.reduce((s,a) => s + a.value, 0);
+
+  document.getElementById('stat-meetings').textContent = meetings;
+  document.getElementById('stat-demos').textContent = demos;
+  document.getElementById('stat-responses').textContent = responses;
+  document.getElementById('stat-active').textContent = active.length;
+
+  const replyRate = outreach > 0 ? Math.round(responses/outreach*100) : 0;
+  document.getElementById('delta-responses').textContent = replyRate + '%';
+  document.getElementById('delta-active').textContent = fmtMoney(activePipe);
+
+  // Revenue
+  const totalWon = STATE.activities.filter(a => a.type === 'closed-won').reduce((s,a) => s + a.value, 0);
+  const pct = Math.min(100, Math.round(totalWon/800000*100));
+  document.getElementById('rev-value').textContent = fmtMoney(totalWon);
+  document.getElementById('rev-sub').textContent = `${fmtMoney(totalWon)} closed won · ${pct}% to goal`;
+  document.getElementById('rev-bar').style.width = pct + '%';
+
+  // Days left
+  const daysEl = document.getElementById('days-left');
+  const startDate = new Date('2026-02-12');
+  const endDate = new Date(startDate); endDate.setDate(startDate.getDate() + 120);
+  const today = new Date();
+  const daysLeft = Math.max(0, Math.ceil((endDate - today) / 86400000));
+  daysEl.textContent = daysLeft + ' days remaining';
+}
+
+function renderFunnel(acts) {
+  const stages = [
+    { key: 'outreach', label: 'Outreach', color: '#3a4a5a' },
+    { key: 'response', label: 'Response', color: '#0094ff' },
+    { key: 'meeting', label: 'Meeting', color: '#00bfff' },
+    { key: 'demo', label: 'Demo', color: '#ff6b35' },
+    { key: 'proposal', label: 'Proposal', color: '#ffc107' },
+    { key: 'closed-won', label: 'Closed Won', color: '#00e5a0' },
+  ];
+
+  const counts = {};
+  stages.forEach(s => counts[s.key] = acts.filter(a => a.type === s.key).length);
+  const maxCount = Math.max(1, ...Object.values(counts));
+
+  document.getElementById('funnel-badge').textContent = acts.length + ' total';
+  document.getElementById('funnel-stages').innerHTML = stages.map((s, i) => {
+    const count = counts[s.key];
+    const width = Math.max(5, Math.round(count / maxCount * 100));
+    const prev = i > 0 ? counts[stages[i-1].key] : count;
+    const conv = i > 0 && prev > 0 ? Math.round(count/prev*100)+'%' : '';
+    return `
+      <div class="funnel-stage">
+        <div class="funnel-label">${s.label}</div>
+        <div class="funnel-bar-wrap">
+          <div class="funnel-bar" style="width:${width}%;background:${s.color};color:#fff;">
+            ${count}
+          </div>
+        </div>
+        <div class="funnel-conv">${conv}</div>
+      </div>`;
+  }).join('');
+}
+
+function renderPipeline(acts) {
+  const stages = [
+    { key: 'meeting', label: 'Discovery/Meeting', color: '#0094ff' },
+    { key: 'demo', label: 'Demo Stage', color: '#ff6b35' },
+    { key: 'proposal', label: 'Proposal Sent', color: '#ffc107' },
+    { key: 'closed-won', label: 'Closed Won', color: '#00e5a0' },
+    { key: 'closed-lost', label: 'Closed Lost', color: '#ff4757' },
+  ];
+
+  const totalPipe = acts.reduce((s,a) => s + a.value, 0);
+  document.getElementById('pipe-total').textContent = fmtMoney(totalPipe);
+
+  document.getElementById('pipeline-stages').innerHTML = stages.map(s => {
+    const stageActs = acts.filter(a => a.type === s.key);
+    const count = stageActs.length;
+    const value = stageActs.reduce((sum,a) => sum + a.value, 0);
+    return `
+      <div class="pipeline-stage">
+        <div class="pipe-left">
+          <div class="pipe-dot" style="background:${s.color}"></div>
+          <div>
+            <div class="pipe-name">${s.label}</div>
+            <div class="pipe-count">${count} deal${count!==1?'s':''}</div>
+          </div>
+        </div>
+        <div class="pipe-value" style="color:${s.color}">${fmtMoney(value)}</div>
+      </div>`;
+  }).join('');
+}
+
+function renderRing(acts) {
+  const outreach = acts.filter(a => a.type === 'outreach').length;
+  const meetings = acts.filter(a => ['meeting','demo'].includes(a.type)).length;
+  const responses = acts.filter(a => a.type === 'response').length;
+  const won = acts.filter(a => a.type === 'closed-won').length;
+  const total = outreach + meetings + responses + won;
+
+  document.getElementById('ring-total').textContent = total;
+  document.getElementById('leg-outreach').textContent = outreach;
+  document.getElementById('leg-meetings').textContent = meetings;
+  document.getElementById('leg-responses').textContent = responses;
+  document.getElementById('leg-won').textContent = won;
+
+  const circumference = 314;
+  if (total === 0) return;
+
+  // Arc 1: Outreach (full bg)
+  const p1 = outreach/total;
+  const p2 = meetings/total;
+  const p3 = responses/total;
+
+  // Simple layered arcs (each offset by previous)
+  const arc1offset = circumference * (1 - p1);
+  const arc2offset = circumference * (1 - p2);
+  const arc3offset = circumference * (1 - p3);
+
+  document.getElementById('ring-arc1').style.strokeDashoffset = arc1offset;
+  document.getElementById('ring-arc2').style.strokeDashoffset = arc2offset;
+  document.getElementById('ring-arc2').style.transform = `rotate(${p1*360}deg)`;
+  document.getElementById('ring-arc2').style.transformOrigin = 'center';
+  document.getElementById('ring-arc3').style.strokeDashoffset = arc3offset;
+  document.getElementById('ring-arc3').style.transform = `rotate(${(p1+p2)*360}deg)`;
+  document.getElementById('ring-arc3').style.transformOrigin = 'center';
+}
+
+// ─── TABLE ───
+let currentFilter = 'all';
+function filterTable(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTableRows(getFilteredActivities());
+}
+
+function renderTable(acts) {
+  renderTableRows(acts);
+}
+
+function renderTableRows(acts) {
+  const filtered = currentFilter === 'all' ? acts : acts.filter(a => {
+    if (currentFilter === 'meeting') return a.type === 'meeting';
+    if (currentFilter === 'demo') return a.type === 'demo';
+    if (currentFilter === 'closed-won') return a.type === 'closed-won';
+    if (currentFilter === 'closed-lost') return a.type === 'closed-lost';
+    return true;
+  });
+
+  const tbody = document.getElementById('activity-table');
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:12px;">No activities logged yet.<br>Click "+ Log Activity" to get started.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.slice(0,30).map(a => {
+    const badgeClass = a.type.replace('_','-');
+    const typeLabels = {
+      outreach:'Outreach', response:'Response', meeting:'Meeting',
+      demo:'Demo', proposal:'Proposal', 'closed-won':'Closed Won', 'closed-lost':'Closed Lost'
+    };
+    return `
+      <tr>
+        <td>
+          <div class="td-company">${escHtml(a.company)}</div>
+          ${a.contact ? `<div class="td-contact">${escHtml(a.contact)}</div>` : ''}
+        </td>
+        <td><span class="badge ${badgeClass}"><span class="badge-dot" style="background:${badgeColor(a.type)}"></span>${typeLabels[a.type]||a.type}</span></td>
+        <td class="td-value" style="color:${a.value ? 'var(--accent)' : 'var(--text3)'}">${a.value ? fmtMoney(a.value) : '—'}</td>
+        <td class="td-source">${escHtml(a.source)}</td>
+        <td class="td-date">${formatDate(a.date)}</td>
+      </tr>`;
+  }).join('');
+}
+
+function badgeColor(type) {
+  const map = {
+    outreach:'#4a90d9', response:'#a78bfa', meeting:'#0094ff',
+    demo:'#ff6b35', proposal:'#ffc107', 'closed-won':'#00e5a0', 'closed-lost':'#ff4757'
+  };
+  return map[type] || '#888';
+}
+
+// ─── BAR CHART ───
+function renderBarChart() {
+  const weeks = [];
+  for (let i = 7; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i*7);
+    weeks.push(getWeekLabel(d));
+  }
+  // Actually render last 8 weeks
+  const weekLabels = [];
+  for (let i = 7; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i*7);
+    const label = i === 0 ? 'Now' : `W-${i}`;
+    weekLabels.push({ label, start: new Date(d.setDate(d.getDate() - 7)), end: d });
+  }
+
+  // Simplified: bucket by week index
+  const buckets = Array(8).fill(null).map(() => ({ outreach:0, meetings:0, demos:0 }));
+  STATE.activities.forEach(a => {
+    const d = new Date(a.date + 'T00:00:00');
+    const now = new Date();
+    const weekIdx = Math.floor((now - d) / (7 * 86400000));
+    const bucketIdx = 7 - weekIdx;
+    if (bucketIdx >= 0 && bucketIdx < 8) {
+      if (a.type === 'outreach') buckets[bucketIdx].outreach++;
+      if (a.type === 'meeting') buckets[bucketIdx].meetings++;
+      if (a.type === 'demo') buckets[bucketIdx].demos++;
+    }
+  });
+
+  const maxVal = Math.max(1, ...buckets.map(b => b.outreach + b.meetings + b.demos));
+  const chartH = 130;
+
+  const labels = ['W-7','W-6','W-5','W-4','W-3','W-2','W-1','Now'];
+  document.getElementById('bar-chart').innerHTML = buckets.map((b, i) => {
+    const total = b.outreach + b.meetings + b.demos;
+    const oh = Math.round(b.outreach / maxVal * chartH);
+    const mh = Math.round(b.meetings / maxVal * chartH);
+    const dh = Math.round(b.demos / maxVal * chartH);
+    return `
+      <div class="bar-col">
+        <div class="bar-val">${total || ''}</div>
+        ${dh > 0 ? `<div class="bar-stack" style="height:${dh}px;background:var(--accent3)"></div>` : ''}
+        ${mh > 0 ? `<div class="bar-stack" style="height:${mh}px;background:var(--accent2)"></div>` : ''}
+        ${oh > 0 ? `<div class="bar-stack" style="height:${oh}px;background:var(--accent)"></div>` : ''}
+        ${(oh+mh+dh) === 0 ? `<div class="bar-stack" style="height:3px;background:var(--border2)"></div>` : ''}
+        <div class="bar-label">${labels[i]}</div>
+      </div>`;
+  }).join('');
+}
+
+// ─── KPIs ───
+function renderKPIs(acts) {
+  const outreach = acts.filter(a => a.type === 'outreach').length;
+  const responses = acts.filter(a => a.type === 'response').length;
+  const meetings = acts.filter(a => a.type === 'meeting').length;
+  const demos = acts.filter(a => a.type === 'demo').length;
+  const won = acts.filter(a => a.type === 'closed-won');
+  const lost = acts.filter(a => a.type === 'closed-lost').length;
+
+  const replyRate = outreach > 0 ? responses/outreach*100 : 0;
+  const meetRate = responses > 0 ? meetings/responses*100 : 0;
+  const demoRate = meetings > 0 ? demos/meetings*100 : 0;
+  const closeRate = demos > 0 ? won.length/demos*100 : 0;
+  const avgDeal = won.length > 0 ? won.reduce((s,a)=>s+a.value,0)/won.length : 0;
+
+  setKPI('reply', replyRate, 15, '%');
+  setKPI('meetrate', meetRate, 30, '%');
+  setKPI('demorate', demoRate, 50, '%');
+  setKPI('closerate', closeRate, 20, '%');
+  setKPICustom('dealsize', avgDeal, 12500);
+}
+
+function setKPI(id, val, target, suffix) {
+  const pct = Math.min(100, Math.round(val));
+  document.getElementById(`kpi-${id}`).textContent = Math.round(val) + suffix;
+  document.getElementById(`kpi-${id}-bar`).style.width = pct + '%';
+  const statusEl = document.getElementById(`kpi-${id}-status`);
+  if (val === 0) { statusEl.textContent = '— No data'; statusEl.className = 'kpi-status on-track'; return; }
+  if (val >= target) { statusEl.textContent = '✓ On Track'; statusEl.className = 'kpi-status on-track'; }
+  else if (val >= target * 0.7) { statusEl.textContent = '⚠ At Risk'; statusEl.className = 'kpi-status at-risk'; }
+  else { statusEl.textContent = '✗ Behind'; statusEl.className = 'kpi-status behind'; }
+}
+
+function setKPICustom(id, val, target) {
+  const pct = Math.min(100, Math.round(val/target*100));
+  document.getElementById(`kpi-${id}`).textContent = fmtMoney(val);
+  document.getElementById(`kpi-${id}-bar`).style.width = pct + '%';
+  const statusEl = document.getElementById(`kpi-${id}-status`);
+  if (val === 0) { statusEl.textContent = '— No data'; statusEl.className = 'kpi-status on-track'; return; }
+  if (val >= target) { statusEl.textContent = '✓ On Track'; statusEl.className = 'kpi-status on-track'; }
+  else if (val >= target * 0.7) { statusEl.textContent = '⚠ At Risk'; statusEl.className = 'kpi-status at-risk'; }
+  else { statusEl.textContent = '✗ Behind'; statusEl.className = 'kpi-status behind'; }
+}
+
+// ─── UTILS ───
+function fmtMoney(n) {
+  if (!n) return '$0';
+  if (n >= 1000000) return '$' + (n/1000000).toFixed(1) + 'M';
+  if (n >= 1000) return '$' + (n/1000).toFixed(0) + 'K';
+  return '$' + n.toLocaleString();
+}
+
+function formatDate(d) {
+  if (!d) return '—';
+  const parts = d.split('-');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[parseInt(parts[1])-1]} ${parseInt(parts[2])}`;
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  t.style.borderColor = type === 'error' ? 'var(--danger)' : 'var(--accent)';
+  t.querySelector('.toast-dot').style.background = type === 'error' ? 'var(--danger)' : 'var(--accent)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ─── INIT ───
+loadState();
+render();
+</script>
+</body>
+</html>

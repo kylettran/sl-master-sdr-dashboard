@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Surface Labs — Outreach Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Familjen+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f1eb;
+    --bg2: #ece9e2;
+    --bg3: #e4e0d8;
+    --card: #faf9f6;
+    --border: #d8d3c8;
+    --border2: #c8c2b4;
+    --text: #1a1714;
+    --text2: #6b6456;
+    --text3: #9e9488;
+    --accent: #c8410a;
+    --accent2: #1a6b3a;
+    --accent3: #1a4a8a;
+    --warn: #b87a00;
+    --purple: #5a2d82;
+    --fire: #d4200c;
+
+    /* Status colors */
+    --s-new: #1a4a8a;
+    --s-sent: #5a5a5a;
+    --s-replied: #1a6b3a;
+    --s-followup: #b87a00;
+    --s-overdue: #d4200c;
+    --s-meeting: #5a2d82;
+    --s-dead: #9e9488;
+    --s-won: #1a6b3a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Familjen Grotesk', sans-serif;
+    min-height: 100vh;
+  }
+
+  /* Subtle noise texture */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0; opacity: 0.4;
+  }
+
+  .app { position: relative; z-index: 1; }
+
+  /* ─── HEADER ─── */
+  header {
+    background: var(--text);
+    color: var(--bg);
+    padding: 0 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 56px;
+    position: sticky; top: 0; z-index: 100;
+  }
+
+  .logo-area { display: flex; align-items: center; gap: 16px; }
+  .logo-pill {
+    background: var(--accent);
+    color: #fff; padding: 3px 10px; border-radius: 3px;
+    font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500;
+    letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .logo-title { font-size: 15px; font-weight: 700; letter-spacing: 0.02em; }
+  .logo-sep { color: #444; }
+  .logo-sub { font-family: 'DM Mono', monospace; font-size: 11px; color: #888; letter-spacing: 0.05em; }
+
+  .header-actions { display: flex; align-items: center; gap: 10px; }
+
+  .btn-add {
+    background: var(--accent); color: #fff; border: none;
+    padding: 7px 16px; border-radius: 4px;
+    font-family: 'Familjen Grotesk', sans-serif; font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: all 0.15s; letter-spacing: 0.02em;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .btn-add:hover { background: #e0490e; transform: translateY(-1px); }
+
+  .btn-ghost {
+    background: transparent; color: #aaa; border: 1px solid #333;
+    padding: 6px 14px; border-radius: 4px;
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .btn-ghost:hover { border-color: #666; color: #ddd; }
+
+  /* ─── STATS BAR ─── */
+  .stats-bar {
+    background: var(--card);
+    border-bottom: 2px solid var(--border);
+    padding: 0 32px;
+    display: flex; align-items: stretch;
+    overflow-x: auto;
+  }
+
+  .stat-pill {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 20px;
+    border-right: 1px solid var(--border);
+    cursor: pointer; transition: background 0.15s;
+    white-space: nowrap;
+    position: relative;
+  }
+  .stat-pill:hover { background: var(--bg2); }
+  .stat-pill.active { background: var(--bg2); }
+  .stat-pill.active::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+    height: 2px; background: var(--accent);
+  }
+  .stat-pill:first-child { border-left: 1px solid var(--border); }
+
+  .stat-num {
+    font-size: 22px; font-weight: 700; line-height: 1;
+    font-family: 'DM Mono', monospace;
+  }
+  .stat-info { }
+  .stat-label { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text2); }
+  .stat-hint { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text3); margin-top: 1px; }
+
+  .urgent-banner {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 20px;
+  }
+  .urgent-count {
+    background: var(--fire); color: #fff;
+    font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500;
+    padding: 2px 8px; border-radius: 3px;
+  }
+  .urgent-label { font-size: 12px; font-weight: 600; color: var(--fire); }
+
+  /* ─── MAIN ─── */
+  .main { padding: 24px 32px; max-width: 1500px; margin: 0 auto; }
+
+  /* ─── TOOLBAR ─── */
+  .toolbar {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 18px;
+  }
+
+  .search-wrap { position: relative; flex: 1; max-width: 320px; }
+  .search-wrap input {
+    width: 100%; padding: 8px 12px 8px 34px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 5px; font-family: 'DM Mono', monospace; font-size: 12px;
+    color: var(--text); outline: none; transition: border-color 0.15s;
+  }
+  .search-wrap input:focus { border-color: var(--border2); }
+  .search-wrap input::placeholder { color: var(--text3); }
+  .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: 13px; }
+
+  .filter-group { display: flex; gap: 4px; }
+  .filter-btn {
+    padding: 7px 12px; border-radius: 4px; border: 1px solid var(--border);
+    background: var(--card); color: var(--text2);
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  .filter-btn:hover { border-color: var(--border2); color: var(--text); }
+  .filter-btn.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+  .sort-select {
+    padding: 7px 12px; border-radius: 4px; border: 1px solid var(--border);
+    background: var(--card); color: var(--text2);
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    cursor: pointer; outline: none;
+  }
+
+  .view-toggle { display: flex; gap: 2px; margin-left: auto; }
+  .view-btn {
+    padding: 7px 10px; border: 1px solid var(--border); background: var(--card);
+    color: var(--text3); cursor: pointer; font-size: 13px; transition: all 0.15s;
+  }
+  .view-btn:first-child { border-radius: 4px 0 0 4px; }
+  .view-btn:last-child { border-radius: 0 4px 4px 0; margin-left: -1px; }
+  .view-btn.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+  /* ─── TABLE ─── */
+  .table-wrap {
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden;
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+
+  thead th {
+    padding: 10px 14px; text-align: left;
+    background: var(--bg2); border-bottom: 2px solid var(--border);
+    font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 400;
+    text-transform: uppercase; letter-spacing: 0.1em; color: var(--text2);
+    cursor: pointer; user-select: none; white-space: nowrap;
+  }
+  thead th:hover { color: var(--text); }
+  thead th .sort-arrow { margin-left: 4px; opacity: 0.4; }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+    cursor: pointer;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--bg2); }
+  tbody tr.row-overdue { border-left: 3px solid var(--fire); }
+  tbody tr.row-followup { border-left: 3px solid var(--warn); }
+  tbody tr.row-won { border-left: 3px solid var(--accent2); }
+
+  tbody td { padding: 11px 14px; vertical-align: middle; }
+
+  .cell-contact { }
+  .contact-name { font-size: 13px; font-weight: 600; }
+  .contact-title { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text2); margin-top: 1px; }
+
+  .cell-company { font-size: 13px; font-weight: 500; }
+  .cell-channel { }
+
+  .channel-tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 8px; border-radius: 3px;
+    font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500;
+    border: 1px solid;
+  }
+  .ch-linkedin { border-color: #0a66c2; color: #0a66c2; background: rgba(10,102,194,0.06); }
+  .ch-slack { border-color: #611f69; color: #611f69; background: rgba(97,31,105,0.06); }
+  .ch-email { border-color: #b87a00; color: #b87a00; background: rgba(184,122,0,0.06); }
+  .ch-referral { border-color: #1a6b3a; color: #1a6b3a; background: rgba(26,107,58,0.06); }
+  .ch-other { border-color: #888; color: #888; background: rgba(136,136,136,0.06); }
+
+  /* Status badge */
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 9px; border-radius: 3px;
+    font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500;
+    border: 1px solid; white-space: nowrap;
+  }
+  .status-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+  .st-new { border-color: #1a4a8a40; color: var(--s-new); background: #1a4a8a0d; }
+  .st-sent { border-color: #5a5a5a40; color: var(--s-sent); background: #5a5a5a0d; }
+  .st-replied { border-color: #1a6b3a40; color: var(--s-replied); background: #1a6b3a0d; }
+  .st-followup { border-color: #b87a0040; color: var(--s-followup); background: #b87a000d; }
+  .st-overdue { border-color: #d4200c40; color: var(--s-overdue); background: #d4200c0d; }
+  .st-meeting { border-color: #5a2d8240; color: var(--s-meeting); background: #5a2d820d; }
+  .st-dead { border-color: #9e948840; color: var(--s-dead); background: #9e94880d; }
+  .st-won { border-color: #1a6b3a40; color: var(--s-won); background: #1a6b3a0d; }
+
+  /* Days cell */
+  .days-cell {
+    font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500;
+  }
+  .days-0 { color: var(--text3); }
+  .days-ok { color: var(--accent3); }
+  .days-warn { color: var(--warn); }
+  .days-fire { color: var(--fire); font-weight: 700; }
+
+  /* Follow-up action cell */
+  .action-cell { display: flex; align-items: center; gap: 6px; }
+  .action-tag {
+    padding: 2px 8px; border-radius: 3px;
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    white-space: nowrap;
+  }
+  .action-now { background: #d4200c15; color: var(--fire); border: 1px solid #d4200c30; font-weight: 600; }
+  .action-soon { background: #b87a0015; color: var(--warn); border: 1px solid #b87a0030; }
+  .action-ok { background: #1a6b3a10; color: var(--accent2); border: 1px solid #1a6b3a30; }
+  .action-wait { color: var(--text3); font-size: 11px; font-family: 'DM Mono', monospace; }
+
+  .notes-cell {
+    font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text2);
+    max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* Row action buttons */
+  .row-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; }
+  tbody tr:hover .row-actions { opacity: 1; }
+  .ra-btn {
+    padding: 3px 8px; border-radius: 3px; border: 1px solid var(--border2);
+    background: var(--bg); font-family: 'DM Mono', monospace; font-size: 10px;
+    cursor: pointer; color: var(--text2); transition: all 0.1s;
+    white-space: nowrap;
+  }
+  .ra-btn:hover { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .ra-btn.ra-done { border-color: #1a6b3a40; color: var(--accent2); }
+  .ra-btn.ra-done:hover { background: var(--accent2); color: #fff; }
+
+  /* ─── KANBAN VIEW ─── */
+  .kanban { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 12px; }
+  .kanban-col {
+    flex-shrink: 0; width: 230px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden;
+  }
+  .kanban-header {
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--bg2);
+  }
+  .kanban-title { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+  .kanban-count {
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    background: var(--border); color: var(--text2); padding: 1px 7px; border-radius: 99px;
+  }
+  .kanban-cards { padding: 8px; display: flex; flex-direction: column; gap: 6px; min-height: 80px; }
+  .k-card {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 5px;
+    padding: 9px 10px; cursor: pointer; transition: all 0.15s;
+  }
+  .k-card:hover { border-color: var(--border2); transform: translateY(-1px); box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+  .k-card.overdue { border-left: 3px solid var(--fire); }
+  .k-card.followup { border-left: 3px solid var(--warn); }
+  .k-name { font-size: 12px; font-weight: 600; margin-bottom: 3px; }
+  .k-company { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text2); margin-bottom: 5px; }
+  .k-meta { display: flex; align-items: center; justify-content: space-between; }
+  .k-days { font-family: 'DM Mono', monospace; font-size: 10px; }
+  .k-channel { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--text3); }
+
+  /* ─── EMPTY STATE ─── */
+  .empty-state {
+    padding: 60px 20px; text-align: center;
+  }
+  .empty-icon { font-size: 36px; margin-bottom: 12px; }
+  .empty-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .empty-sub { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text2); margin-bottom: 20px; }
+
+  /* ─── MODAL ─── */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(26,23,20,0.5); backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+  .modal {
+    background: var(--card); border: 1px solid var(--border2); border-radius: 10px;
+    padding: 28px; width: 520px; max-width: 95vw; max-height: 90vh; overflow-y: auto;
+    transform: translateY(16px); transition: transform 0.2s;
+    position: relative;
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+
+  .modal-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
+  .modal-title { font-size: 18px; font-weight: 700; }
+  .modal-subtitle { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text2); margin-top: 3px; }
+  .modal-close {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--text2); padding: 4px 10px; cursor: pointer;
+    font-family: 'DM Mono', monospace; font-size: 11px; flex-shrink: 0;
+  }
+  .modal-close:hover { background: var(--text); color: var(--bg); }
+
+  .form-section { margin-bottom: 20px; }
+  .form-section-title {
+    font-family: 'DM Mono', monospace; font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.12em; color: var(--text3); margin-bottom: 10px;
+    padding-bottom: 6px; border-bottom: 1px solid var(--border);
+  }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group.full { grid-column: span 2; }
+  label {
+    font-family: 'DM Mono', monospace; font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text2); font-weight: 400;
+  }
+  input, select, textarea {
+    background: var(--bg); border: 1px solid var(--border2); border-radius: 5px;
+    color: var(--text); padding: 8px 10px;
+    font-family: 'Familjen Grotesk', sans-serif; font-size: 13px;
+    outline: none; transition: border-color 0.15s; width: 100%;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--text2); }
+  textarea { resize: none; height: 64px; font-size: 12px; }
+  select option { background: var(--bg); }
+
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+  .btn-cancel {
+    padding: 8px 16px; border-radius: 5px; border: 1px solid var(--border);
+    background: transparent; color: var(--text2);
+    font-family: 'Familjen Grotesk', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .btn-cancel:hover { border-color: var(--border2); color: var(--text); }
+  .btn-save {
+    padding: 8px 20px; border-radius: 5px; border: none;
+    background: var(--text); color: var(--bg);
+    font-family: 'Familjen Grotesk', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-save:hover { background: var(--accent); }
+
+  /* Detail modal */
+  .detail-field { margin-bottom: 14px; }
+  .detail-label { font-family: 'DM Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); margin-bottom: 4px; }
+  .detail-value { font-size: 14px; font-weight: 500; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .timeline { margin-top: 16px; }
+  .tl-item { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .tl-item:last-child { border-bottom: none; }
+  .tl-date { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text3); width: 60px; flex-shrink: 0; padding-top: 2px; }
+  .tl-content { font-size: 13px; }
+  .tl-type { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--accent); }
+  .status-select-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .status-option {
+    padding: 5px 12px; border-radius: 4px; border: 1px solid var(--border2);
+    font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer;
+    background: var(--bg); transition: all 0.15s; color: var(--text2);
+  }
+  .status-option:hover { border-color: var(--text); color: var(--text); }
+  .status-option.selected { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+  /* ─── TOAST ─── */
+  .toast {
+    position: fixed; bottom: 20px; right: 20px; z-index: 2000;
+    background: var(--text); color: var(--bg); border-radius: 6px;
+    padding: 10px 18px; font-size: 13px; font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+    transform: translateY(12px); opacity: 0;
+    transition: all 0.2s; pointer-events: none;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  /* ─── TODAY PANEL ─── */
+  .today-panel {
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 16px 20px; margin-bottom: 18px;
+    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  }
+  .today-label {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.12em; color: var(--text3);
+    flex-shrink: 0;
+  }
+  .today-items { display: flex; gap: 8px; flex-wrap: wrap; flex: 1; }
+  .today-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 4px; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .today-item.fire { background: #d4200c12; border: 1px solid #d4200c30; color: var(--fire); }
+  .today-item.warn { background: #b87a0012; border: 1px solid #b87a0030; color: var(--warn); }
+  .today-item.ok { background: #1a6b3a12; border: 1px solid #1a6b3a30; color: var(--accent2); }
+  .today-item:hover { filter: brightness(0.9); }
+  .today-item-count { font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 500; }
+  .today-item-label { font-size: 12px; font-weight: 600; }
+
+  /* Column widths */
+  .col-contact { width: 160px; }
+  .col-company { width: 140px; }
+  .col-channel { width: 90px; }
+  .col-status { width: 120px; }
+  .col-days { width: 80px; }
+  .col-action { width: 120px; }
+  .col-followup { width: 100px; }
+  .col-notes { width: 160px; }
+  .col-actions { width: 100px; }
+
+  @media (max-width: 900px) {
+    .main { padding: 16px; }
+    header { padding: 0 16px; }
+    .stats-bar { padding: 0 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ─── HEADER ─── -->
+<header>
+  <div class="logo-area">
+    <div class="logo-pill">Surface Labs</div>
+    <div class="logo-title">Outreach Tracker</div>
+    <div class="logo-sep">/</div>
+    <div class="logo-sub">50-contact campaign</div>
+  </div>
+  <div class="header-actions">
+    <button class="btn-ghost" onclick="exportCSV()">↓ Export CSV</button>
+    <button class="btn-add" onclick="openAddModal()">+ Add Contact</button>
+  </div>
+</header>
+
+<!-- ─── STATS BAR ─── -->
+<div class="stats-bar">
+  <div class="stat-pill active" onclick="setStatusFilter('all',this)" id="pill-all">
+    <div class="stat-num" id="s-total">0</div>
+    <div class="stat-info">
+      <div class="stat-label">Total</div>
+      <div class="stat-hint">all contacts</div>
+    </div>
+  </div>
+  <div class="stat-pill" onclick="setStatusFilter('new',this)" id="pill-new">
+    <div class="stat-num" id="s-new" style="color:var(--s-new)">0</div>
+    <div class="stat-info">
+      <div class="stat-label">Not Sent</div>
+      <div class="stat-hint">queued</div>
+    </div>
+  </div>
+  <div class="stat-pill" onclick="setStatusFilter('sent',this)" id="pill-sent">
+    <div class="stat-num" id="s-sent" style="color:var(--s-sent)">0</div>
+    <div class="stat-info">
+      <div class="stat-label">Sent</div>
+      <div class="stat-hint">awaiting reply</div>
+    </div>
+  </div>
+  <div class="stat-pill" onclick="setStatusFilter('followup',this)" id="pill-followup">
+    <div class="stat-num" id="s-followup" style="color:var(--warn)">0</div>
+    <div class="stat-info">
+      <div class="stat-label">Follow-up</div>
+      <div class="stat-hint">needs action</div>
+    </div>
+  </div>
+  <div class="stat-pill" onclick="setStatusFilter('overdue',this)" id="pill-overdue">
+    <div class="stat-num" id="s-overdue" style="color:var(--fire)">0</div>
+    <div class="stat-info">
+      <div class="stat-label">Overdue</div>
+      <div class="stat-hint">7+ days silent</div>
+    </div>
+  </div>
+  <div class="stat-pill" onclick="setStatusFilter('replied',this)" id="pill-replied">
+    <div class="stat-num" id="s-replied" style="color:var(--s-replied)">0</div>
+    <div class="stat-info">
+      <div class="stat-label">Replied</div>
+      <div class="stat-hint">engaged</div>
+    </div>
+  </div>
+  <div class="stat-pill" onclick="setStatusFilter('meeting',this)" id="pill-meeting">
+    <div class="stat-num" id="s-meeting" style="color:var(--purple)">0</div>
+    <div class="stat-info">
+      <div class="stat-label">Meeting</div>
+      <div class="stat-hint">booked</div>
+    </div>
+  </div>
+  <div class="stat-pill" onclick="setStatusFilter('won',this)" id="pill-won">
+    <div class="stat-num" id="s-won" style="color:var(--accent2)">0</div>
+    <div class="stat-info">
+      <div class="stat-label">Won</div>
+      <div class="stat-hint">closed</div>
+    </div>
+  </div>
+  <div class="urgent-banner" id="urgent-banner" style="display:none">
+    <div class="urgent-count" id="urgent-num">0</div>
+    <div class="urgent-label">need action today</div>
+  </div>
+</div>
+
+<!-- ─── MAIN ─── -->
+<div class="main">
+
+  <!-- Today Panel -->
+  <div class="today-panel" id="today-panel">
+    <div class="today-label">Today's Actions</div>
+    <div class="today-items" id="today-items">
+      <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)">Add contacts to see your daily action list</span>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="search-wrap">
+      <span class="search-icon">⌕</span>
+      <input type="text" id="search-input" placeholder="Search name, company, notes..." oninput="render()">
+    </div>
+    <div class="filter-group" id="channel-filters">
+      <button class="filter-btn active" onclick="setChannelFilter('all',this)">All</button>
+      <button class="filter-btn" onclick="setChannelFilter('LinkedIn',this)">LinkedIn</button>
+      <button class="filter-btn" onclick="setChannelFilter('Slack',this)">Slack</button>
+      <button class="filter-btn" onclick="setChannelFilter('Email',this)">Email</button>
+      <button class="filter-btn" onclick="setChannelFilter('Referral',this)">Referral</button>
+    </div>
+    <select class="sort-select" id="sort-select" onchange="render()">
+      <option value="urgency">Sort: Urgency</option>
+      <option value="days_desc">Sort: Days Idle ↓</option>
+      <option value="days_asc">Sort: Days Idle ↑</option>
+      <option value="name">Sort: Name</option>
+      <option value="company">Sort: Company</option>
+      <option value="added">Sort: Recently Added</option>
+    </select>
+    <div class="view-toggle">
+      <button class="view-btn active" id="view-table" onclick="setView('table',this)" title="Table view">☰</button>
+      <button class="view-btn" id="view-kanban" onclick="setView('kanban',this)" title="Kanban view">⊞</button>
+    </div>
+  </div>
+
+  <!-- Table View -->
+  <div id="table-view">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="col-contact">Contact</th>
+            <th class="col-company">Company</th>
+            <th class="col-channel">Channel</th>
+            <th class="col-status">Status</th>
+            <th class="col-days" onclick="toggleSort('days')">Days Idle <span class="sort-arrow">↕</span></th>
+            <th class="col-action">Action Needed</th>
+            <th class="col-followup">Follow-up #</th>
+            <th class="col-notes">Notes</th>
+            <th class="col-actions"></th>
+          </tr>
+        </thead>
+        <tbody id="contact-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Kanban View -->
+  <div id="kanban-view" style="display:none">
+    <div class="kanban" id="kanban-board"></div>
+  </div>
+
+</div>
+</div>
+
+<!-- ─── ADD/EDIT MODAL ─── -->
+<div class="modal-overlay" id="add-modal" onclick="handleAddOverlay(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modal-title">Add Contact</div>
+        <div class="modal-subtitle">// Track every outreach touchpoint</div>
+      </div>
+      <button class="modal-close" onclick="closeAddModal()">✕ Close</button>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Contact Info</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Full Name *</label>
+          <input type="text" id="f-name" placeholder="Jane Smith">
+        </div>
+        <div class="form-group">
+          <label>Job Title</label>
+          <input type="text" id="f-title" placeholder="VP of Marketing Ops">
+        </div>
+        <div class="form-group">
+          <label>Company *</label>
+          <input type="text" id="f-company" placeholder="Acme Corp">
+        </div>
+        <div class="form-group">
+          <label>LinkedIn / Profile URL</label>
+          <input type="text" id="f-url" placeholder="linkedin.com/in/janesmith">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Outreach Details</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Primary Channel *</label>
+          <select id="f-channel">
+            <option value="LinkedIn">LinkedIn</option>
+            <option value="Slack">Slack</option>
+            <option value="Email">Email</option>
+            <option value="Referral">Referral</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="f-status">
+            <option value="new">Not Sent Yet</option>
+            <option value="sent">Message Sent</option>
+            <option value="replied">Replied</option>
+            <option value="followup">Needs Follow-up</option>
+            <option value="overdue">Overdue / No Response</option>
+            <option value="meeting">Meeting Booked</option>
+            <option value="dead">Dead / Not Interested</option>
+            <option value="won">Closed Won</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Last Contact Date</label>
+          <input type="date" id="f-lastdate">
+        </div>
+        <div class="form-group">
+          <label>Follow-up # (1st, 2nd...)</label>
+          <select id="f-followup-num">
+            <option value="0">No contact yet</option>
+            <option value="1">1st message sent</option>
+            <option value="2">2nd follow-up</option>
+            <option value="3">3rd follow-up</option>
+            <option value="4">4th+ follow-up</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Connection Type</label>
+          <select id="f-connection">
+            <option value="Warm - Direct">Warm — Direct connection</option>
+            <option value="Warm - Mutual">Warm — Mutual connection</option>
+            <option value="Cold">Cold outreach</option>
+            <option value="Inbound">Inbound / they reached out</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Deal Value (ACV $)</label>
+          <input type="number" id="f-value" placeholder="12500">
+        </div>
+        <div class="form-group full">
+          <label>Message Sent / Context</label>
+          <textarea id="f-message" placeholder="What did you say? Which angle did you use? Connection you referenced?"></textarea>
+        </div>
+        <div class="form-group full">
+          <label>Notes / Their Response</label>
+          <textarea id="f-notes" placeholder="What did they say? Objections? Next steps? ICP fit signals?"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeAddModal()">Cancel</button>
+      <button class="btn-save" onclick="saveContact()">Save Contact →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── DETAIL MODAL ─── -->
+<div class="modal-overlay" id="detail-modal" onclick="handleDetailOverlay(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="d-name">—</div>
+        <div class="modal-subtitle" id="d-company-title">—</div>
+      </div>
+      <button class="modal-close" onclick="closeDetailModal()">✕ Close</button>
+    </div>
+
+    <div class="detail-grid">
+      <div class="detail-field">
+        <div class="detail-label">Channel</div>
+        <div class="detail-value" id="d-channel">—</div>
+      </div>
+      <div class="detail-field">
+        <div class="detail-label">Connection Type</div>
+        <div class="detail-value" id="d-connection">—</div>
+      </div>
+      <div class="detail-field">
+        <div class="detail-label">Follow-up Count</div>
+        <div class="detail-value" id="d-followup">—</div>
+      </div>
+      <div class="detail-field">
+        <div class="detail-label">Days Since Last Contact</div>
+        <div class="detail-value" id="d-days">—</div>
+      </div>
+    </div>
+
+    <div class="detail-field">
+      <div class="detail-label">Last Message Sent</div>
+      <div class="detail-value" id="d-message" style="font-size:13px;color:var(--text2);line-height:1.5"></div>
+    </div>
+
+    <div class="detail-field" style="margin-top:10px">
+      <div class="detail-label">Notes</div>
+      <div class="detail-value" id="d-notes" style="font-size:13px;color:var(--text2);line-height:1.5"></div>
+    </div>
+
+    <div class="detail-field" style="margin-top:14px">
+      <div class="detail-label">Update Status</div>
+      <div class="status-select-row" id="d-status-row"></div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn-save" style="flex:1" onclick="editFromDetail()">✏ Edit Contact</button>
+      <button class="btn-cancel" onclick="logFollowUp()">+ Log Follow-up</button>
+      <button class="btn-cancel" style="color:var(--fire);border-color:var(--fire)" onclick="deleteContact()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toast-msg">Saved</span></div>
+
+<script>
+// ─── STATE ───
+let contacts = [];
+let statusFilter = 'all';
+let channelFilter = 'all';
+let currentView = 'table';
+let editingId = null;
+let detailId = null;
+
+const STATUS_ORDER = ['overdue','followup','new','sent','replied','meeting','won','dead'];
+
+function loadData() {
+  try {
+    const s = localStorage.getItem('outreach_contacts');
+    if (s) contacts = JSON.parse(s);
+  } catch(e) {}
+}
+function saveData() {
+  try { localStorage.setItem('outreach_contacts', JSON.stringify(contacts)); } catch(e) {}
+}
+
+// ─── DATE UTILS ───
+function daysSince(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr + 'T00:00:00');
+  const now = new Date();
+  return Math.floor((now - d) / 86400000);
+}
+function todayStr() { return new Date().toISOString().split('T')[0]; }
+function fmtDate(d) {
+  if (!d) return '—';
+  const [y,m,day] = d.split('-');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[parseInt(m)-1]} ${parseInt(day)}`;
+}
+
+// ─── URGENCY SCORE ───
+function urgencyScore(c) {
+  const days = daysSince(c.lastDate);
+  if (c.status === 'overdue') return 1000 + (days||0);
+  if (c.status === 'followup') return 500 + (days||0);
+  if (c.status === 'sent' && days >= 5) return 400 + days;
+  if (c.status === 'new') return 300;
+  if (c.status === 'sent') return 200 + (days||0);
+  if (c.status === 'replied') return 150;
+  if (c.status === 'meeting') return 50;
+  return 0;
+}
+
+// ─── ACTION NEEDED ───
+function getAction(c) {
+  const days = daysSince(c.lastDate);
+  if (c.status === 'new') return { label: 'Send initial msg', cls: 'action-now' };
+  if (c.status === 'overdue') return { label: `Re-engage (${days}d)`, cls: 'action-now' };
+  if (c.status === 'followup') return { label: 'Follow up now', cls: 'action-now' };
+  if (c.status === 'sent' && days >= 5) return { label: `Follow up (${days}d)`, cls: 'action-soon' };
+  if (c.status === 'sent' && days >= 3) return { label: `Follow up soon`, cls: 'action-soon' };
+  if (c.status === 'sent') return { label: `Waiting (${days}d)`, cls: 'action-wait action-ok' };
+  if (c.status === 'replied') return { label: 'Advance to demo', cls: 'action-ok' };
+  if (c.status === 'meeting') return { label: 'Prep meeting', cls: 'action-ok' };
+  if (c.status === 'won') return { label: 'Closed ✓', cls: 'action-ok' };
+  if (c.status === 'dead') return { label: 'Revisit in 30d', cls: 'action-wait' };
+  return { label: '—', cls: 'action-wait' };
+}
+
+// ─── ROW CLASS ───
+function rowClass(c) {
+  const days = daysSince(c.lastDate);
+  if (c.status === 'overdue' || (c.status === 'sent' && days >= 7)) return 'row-overdue';
+  if (c.status === 'followup' || (c.status === 'sent' && days >= 4)) return 'row-followup';
+  if (c.status === 'won') return 'row-won';
+  return '';
+}
+
+// ─── FILTER & SORT ───
+function getFiltered() {
+  let list = [...contacts];
+
+  // Status filter
+  if (statusFilter !== 'all') {
+    if (statusFilter === 'overdue') {
+      list = list.filter(c => c.status === 'overdue' || (c.status === 'sent' && (daysSince(c.lastDate)||0) >= 7));
+    } else {
+      list = list.filter(c => c.status === statusFilter);
+    }
+  }
+  // Channel filter
+  if (channelFilter !== 'all') list = list.filter(c => c.channel === channelFilter);
+  // Search
+  const q = document.getElementById('search-input')?.value?.toLowerCase() || '';
+  if (q) list = list.filter(c =>
+    c.name.toLowerCase().includes(q) ||
+    c.company.toLowerCase().includes(q) ||
+    (c.notes||'').toLowerCase().includes(q) ||
+    (c.title||'').toLowerCase().includes(q)
+  );
+  // Sort
+  const sort = document.getElementById('sort-select')?.value || 'urgency';
+  if (sort === 'urgency') list.sort((a,b) => urgencyScore(b) - urgencyScore(a));
+  else if (sort === 'days_desc') list.sort((a,b) => (daysSince(b.lastDate)||0) - (daysSince(a.lastDate)||0));
+  else if (sort === 'days_asc') list.sort((a,b) => (daysSince(a.lastDate)||0) - (daysSince(b.lastDate)||0));
+  else if (sort === 'name') list.sort((a,b) => a.name.localeCompare(b.name));
+  else if (sort === 'company') list.sort((a,b) => a.company.localeCompare(b.company));
+  else if (sort === 'added') list.sort((a,b) => b.id - a.id);
+  return list;
+}
+
+// ─── RENDER ───
+function render() {
+  renderStats();
+  renderTodayPanel();
+  if (currentView === 'table') renderTable();
+  else renderKanban();
+}
+
+function renderStats() {
+  const statusMap = { total:0, new:0, sent:0, followup:0, overdue:0, replied:0, meeting:0, won:0, dead:0 };
+  contacts.forEach(c => {
+    statusMap.total++;
+    const days = daysSince(c.lastDate)||0;
+    if (c.status === 'overdue' || (c.status === 'sent' && days >= 7)) statusMap.overdue++;
+    else statusMap[c.status] = (statusMap[c.status]||0) + 1;
+  });
+  document.getElementById('s-total').textContent = statusMap.total;
+  document.getElementById('s-new').textContent = statusMap.new||0;
+  document.getElementById('s-sent').textContent = statusMap.sent||0;
+  document.getElementById('s-followup').textContent = statusMap.followup||0;
+  document.getElementById('s-overdue').textContent = statusMap.overdue||0;
+  document.getElementById('s-replied').textContent = statusMap.replied||0;
+  document.getElementById('s-meeting').textContent = statusMap.meeting||0;
+  document.getElementById('s-won').textContent = statusMap.won||0;
+
+  const urgent = (statusMap.overdue||0) + (statusMap.followup||0) + (statusMap.new||0);
+  const banner = document.getElementById('urgent-banner');
+  if (urgent > 0) {
+    banner.style.display = 'flex';
+    document.getElementById('urgent-num').textContent = urgent;
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+function renderTodayPanel() {
+  const overdue = contacts.filter(c => c.status === 'overdue' || (c.status==='sent' && (daysSince(c.lastDate)||0)>=7));
+  const followup = contacts.filter(c => c.status === 'followup' || (c.status==='sent' && (daysSince(c.lastDate)||0)>=4 && (daysSince(c.lastDate)||0)<7));
+  const noSend = contacts.filter(c => c.status === 'new');
+  const replied = contacts.filter(c => c.status === 'replied');
+
+  const items = document.getElementById('today-items');
+  if (contacts.length === 0) {
+    items.innerHTML = `<span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)">Add contacts to see your daily action list</span>`;
+    return;
+  }
+
+  let html = '';
+  if (overdue.length) html += `<div class="today-item fire" onclick="setStatusFilter('overdue',document.getElementById('pill-overdue'))"><div class="today-item-count">${overdue.length}</div><div class="today-item-label">Re-engage now</div></div>`;
+  if (followup.length) html += `<div class="today-item warn" onclick="setStatusFilter('followup',document.getElementById('pill-followup'))"><div class="today-item-count">${followup.length}</div><div class="today-item-label">Follow up</div></div>`;
+  if (noSend.length) html += `<div class="today-item fire" onclick="setStatusFilter('new',document.getElementById('pill-new'))"><div class="today-item-count">${noSend.length}</div><div class="today-item-label">Send first message</div></div>`;
+  if (replied.length) html += `<div class="today-item ok"><div class="today-item-count">${replied.length}</div><div class="today-item-label">Active replies</div></div>`;
+  if (!html) html = `<span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--accent2)">✓ All caught up — no urgent actions</span>`;
+  items.innerHTML = html;
+}
+
+function renderTable() {
+  const list = getFiltered();
+  const tbody = document.getElementById('contact-table');
+  if (list.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No contacts yet</div><div class="empty-sub">// Add your 50 outreach targets to start tracking</div><button class="btn-add" onclick="openAddModal()">+ Add First Contact</button></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map(c => {
+    const days = daysSince(c.lastDate);
+    const action = getAction(c);
+    const daysClass = !days ? 'days-0' : days <= 3 ? 'days-ok' : days <= 6 ? 'days-warn' : 'days-fire';
+    const chClass = `ch-${c.channel.toLowerCase()}`;
+    const stClass = `st-${c.status}`;
+    const fuLabels = ['—','1st','2nd','3rd','4th+'];
+    const fuNum = c.followupNum || 0;
+
+    return `<tr class="${rowClass(c)}" onclick="openDetail('${c.id}')">
+      <td class="cell-contact">
+        <div class="contact-name">${esc(c.name)}</div>
+        ${c.title ? `<div class="contact-title">${esc(c.title)}</div>` : ''}
+      </td>
+      <td class="cell-company">${esc(c.company)}</td>
+      <td class="cell-channel"><span class="channel-tag ${chClass}">${esc(c.channel)}</span></td>
+      <td><span class="status-badge ${stClass}"><span class="status-dot" style="background:${statusColor(c.status)}"></span>${statusLabel(c.status)}</span></td>
+      <td class="days-cell ${daysClass}">${days !== null ? days + 'd' : '—'}</td>
+      <td><span class="${action.cls} action-tag">${action.label}</span></td>
+      <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text2)">${fuLabels[Math.min(fuNum,4)]}</td>
+      <td class="notes-cell">${esc(c.notes||'—')}</td>
+      <td onclick="event.stopPropagation()">
+        <div class="row-actions">
+          <button class="ra-btn" onclick="quickStatus('${c.id}','sent')">Sent</button>
+          <button class="ra-btn ra-done" onclick="quickStatus('${c.id}','replied')">✓ Replied</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderKanban() {
+  const cols = [
+    { key:'new', label:'Not Sent', color:'var(--s-new)' },
+    { key:'sent', label:'Sent', color:'var(--s-sent)' },
+    { key:'followup', label:'Follow-up', color:'var(--warn)' },
+    { key:'overdue', label:'Overdue', color:'var(--fire)' },
+    { key:'replied', label:'Replied', color:'var(--s-replied)' },
+    { key:'meeting', label:'Meeting', color:'var(--purple)' },
+    { key:'won', label:'Won', color:'var(--accent2)' },
+    { key:'dead', label:'Dead', color:'var(--text3)' },
+  ];
+
+  const board = document.getElementById('kanban-board');
+  board.innerHTML = cols.map(col => {
+    let colContacts = contacts.filter(c => {
+      if (col.key === 'overdue') return c.status === 'overdue' || (c.status === 'sent' && (daysSince(c.lastDate)||0) >= 7);
+      if (col.key === 'sent') return c.status === 'sent' && (daysSince(c.lastDate)||0) < 7;
+      return c.status === col.key;
+    });
+
+    const cards = colContacts.map(c => {
+      const days = daysSince(c.lastDate);
+      const isUrgent = col.key === 'overdue' || col.key === 'followup';
+      return `<div class="k-card ${isUrgent?'overdue':''}" onclick="openDetail('${c.id}')">
+        <div class="k-name">${esc(c.name)}</div>
+        <div class="k-company">${esc(c.company)}</div>
+        <div class="k-meta">
+          <span class="k-days ${days >= 7 ? 'days-fire' : days >= 4 ? 'days-warn' : 'days-ok'}">${days !== null ? days+'d ago' : 'Not contacted'}</span>
+          <span class="k-channel">${esc(c.channel)}</span>
+        </div>
+      </div>`;
+    }).join('') || `<div style="padding:12px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);text-align:center">empty</div>`;
+
+    return `<div class="kanban-col">
+      <div class="kanban-header" style="border-top:2px solid ${col.color}">
+        <div class="kanban-title" style="color:${col.color}">${col.label}</div>
+        <div class="kanban-count">${colContacts.length}</div>
+      </div>
+      <div class="kanban-cards">${cards}</div>
+    </div>`;
+  }).join('');
+}
+
+// ─── DETAIL MODAL ───
+function openDetail(id) {
+  const c = contacts.find(x => x.id == id);
+  if (!c) return;
+  detailId = id;
+  const days = daysSince(c.lastDate);
+  document.getElementById('d-name').textContent = c.name;
+  document.getElementById('d-company-title').textContent = `${c.title ? c.title + ' @ ' : ''}${c.company}`;
+  document.getElementById('d-channel').textContent = c.channel;
+  document.getElementById('d-connection').textContent = c.connection || '—';
+  document.getElementById('d-followup').textContent = ['No contact yet','1st message','2nd follow-up','3rd follow-up','4th+ follow-up'][Math.min(c.followupNum||0,4)];
+  document.getElementById('d-days').textContent = days !== null ? `${days} days` : '—';
+  document.getElementById('d-message').textContent = c.message || '—';
+  document.getElementById('d-notes').textContent = c.notes || '—';
+
+  const statuses = ['new','sent','replied','followup','overdue','meeting','won','dead'];
+  document.getElementById('d-status-row').innerHTML = statuses.map(s =>
+    `<div class="status-option ${c.status === s ? 'selected' : ''}" onclick="quickStatus('${id}','${s}')">${statusLabel(s)}</div>`
+  ).join('');
+
+  document.getElementById('detail-modal').classList.add('open');
+}
+function closeDetailModal() { document.getElementById('detail-modal').classList.remove('open'); detailId = null; }
+function handleDetailOverlay(e) { if (e.target === document.getElementById('detail-modal')) closeDetailModal(); }
+
+function editFromDetail() {
+  closeDetailModal();
+  openAddModal(detailId);
+}
+function deleteContact() {
+  if (!confirm('Delete this contact?')) return;
+  contacts = contacts.filter(c => c.id != detailId);
+  saveData(); closeDetailModal(); render();
+  showToast('Contact deleted');
+}
+function logFollowUp() {
+  const c = contacts.find(x => x.id == detailId);
+  if (!c) return;
+  c.followupNum = Math.min((c.followupNum||0) + 1, 4);
+  c.lastDate = todayStr();
+  c.status = 'sent';
+  saveData(); render();
+  document.getElementById('d-followup').textContent = ['No contact yet','1st message','2nd follow-up','3rd follow-up','4th+ follow-up'][Math.min(c.followupNum,4)];
+  document.getElementById('d-days').textContent = '0 days';
+  openDetail(detailId);
+  showToast('Follow-up logged — last contact reset to today');
+}
+
+// ─── QUICK STATUS ───
+function quickStatus(id, status) {
+  const c = contacts.find(x => x.id == id);
+  if (!c) return;
+  c.status = status;
+  if (status === 'sent') { c.lastDate = todayStr(); c.followupNum = Math.max(c.followupNum||0, 1); }
+  if (status === 'replied') c.lastDate = todayStr();
+  saveData(); render();
+  if (detailId == id) openDetail(id);
+  showToast(`Status → ${statusLabel(status)}`);
+}
+
+// ─── ADD/EDIT MODAL ───
+function openAddModal(editId) {
+  editingId = editId || null;
+  const today = todayStr();
+
+  if (editId) {
+    const c = contacts.find(x => x.id == editId);
+    if (!c) return;
+    document.getElementById('modal-title').textContent = 'Edit Contact';
+    document.getElementById('f-name').value = c.name;
+    document.getElementById('f-title').value = c.title || '';
+    document.getElementById('f-company').value = c.company;
+    document.getElementById('f-url').value = c.url || '';
+    document.getElementById('f-channel').value = c.channel;
+    document.getElementById('f-status').value = c.status;
+    document.getElementById('f-lastdate').value = c.lastDate || '';
+    document.getElementById('f-followup-num').value = c.followupNum || 0;
+    document.getElementById('f-connection').value = c.connection || 'Warm - Direct';
+    document.getElementById('f-value').value = c.value || '';
+    document.getElementById('f-message').value = c.message || '';
+    document.getElementById('f-notes').value = c.notes || '';
+  } else {
+    document.getElementById('modal-title').textContent = 'Add Contact';
+    ['f-name','f-title','f-company','f-url','f-message','f-notes'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('f-channel').value = 'LinkedIn';
+    document.getElementById('f-status').value = 'new';
+    document.getElementById('f-lastdate').value = '';
+    document.getElementById('f-followup-num').value = '0';
+    document.getElementById('f-connection').value = 'Warm - Direct';
+    document.getElementById('f-value').value = '';
+  }
+
+  document.getElementById('add-modal').classList.add('open');
+}
+function closeAddModal() { document.getElementById('add-modal').classList.remove('open'); editingId = null; }
+function handleAddOverlay(e) { if (e.target === document.getElementById('add-modal')) closeAddModal(); }
+
+function saveContact() {
+  const name = document.getElementById('f-name').value.trim();
+  const company = document.getElementById('f-company').value.trim();
+  if (!name || !company) { showToast('Name and company are required'); return; }
+
+  const data = {
+    name, company,
+    title: document.getElementById('f-title').value.trim(),
+    url: document.getElementById('f-url').value.trim(),
+    channel: document.getElementById('f-channel').value,
+    status: document.getElementById('f-status').value,
+    lastDate: document.getElementById('f-lastdate').value,
+    followupNum: parseInt(document.getElementById('f-followup-num').value) || 0,
+    connection: document.getElementById('f-connection').value,
+    value: parseFloat(document.getElementById('f-value').value) || 0,
+    message: document.getElementById('f-message').value.trim(),
+    notes: document.getElementById('f-notes').value.trim(),
+  };
+
+  if (editingId) {
+    const idx = contacts.findIndex(c => c.id == editingId);
+    if (idx >= 0) contacts[idx] = { ...contacts[idx], ...data };
+  } else {
+    data.id = Date.now();
+    contacts.unshift(data);
+  }
+
+  saveData(); closeAddModal(); render();
+  showToast(editingId ? 'Contact updated' : 'Contact added');
+}
+
+// ─── FILTERS ───
+function setStatusFilter(f, el) {
+  statusFilter = f;
+  document.querySelectorAll('.stat-pill').forEach(p => p.classList.remove('active'));
+  if (el) el.classList.add('active');
+  render();
+}
+function setChannelFilter(f, btn) {
+  channelFilter = f;
+  document.querySelectorAll('#channel-filters .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+function setView(v, btn) {
+  currentView = v;
+  document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('table-view').style.display = v === 'table' ? '' : 'none';
+  document.getElementById('kanban-view').style.display = v === 'kanban' ? '' : 'none';
+  render();
+}
+
+// ─── EXPORT CSV ───
+function exportCSV() {
+  const headers = ['Name','Title','Company','Channel','Connection','Status','Last Contact','Days Idle','Follow-up #','Deal Value','Message','Notes','URL'];
+  const rows = contacts.map(c => [
+    c.name, c.title||'', c.company, c.channel, c.connection||'', statusLabel(c.status),
+    c.lastDate||'', daysSince(c.lastDate)||'', c.followupNum||0, c.value||0,
+    (c.message||'').replace(/,/g,';'), (c.notes||'').replace(/,/g,';'), c.url||''
+  ]);
+  const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = `outreach-tracker-${todayStr()}.csv`;
+  a.click();
+  showToast('CSV exported');
+}
+
+// ─── HELPERS ───
+function statusLabel(s) {
+  const m = { new:'Not Sent', sent:'Sent', replied:'Replied', followup:'Follow-up', overdue:'Overdue', meeting:'Meeting', dead:'Dead', won:'Won' };
+  return m[s] || s;
+}
+function statusColor(s) {
+  const m = { new:'#1a4a8a', sent:'#5a5a5a', replied:'#1a6b3a', followup:'#b87a00', overdue:'#d4200c', meeting:'#5a2d82', dead:'#9e9488', won:'#1a6b3a' };
+  return m[s] || '#888';
+}
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ─── INIT ───
+loadData();
+render();
+</script>
+</body>
+</html>
