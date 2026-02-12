@@ -512,6 +512,7 @@
       <a class="active" href="/outreach-tracker.html">Outreach Center</a>
     </nav>
     <button class="btn-ghost" onclick="triggerImport()">↑ Import CSV</button>
+    <button class="btn-ghost" onclick="openImportLog()">View Import Log</button>
     <button class="btn-ghost" onclick="exportCSV()">↓ Export CSV</button>
     <input id="csv-input" type="file" accept=".csv,text/csv" style="display:none" onchange="handleImport(this.files)">
     <button class="btn-add" onclick="openAddModal()">+ Add Contact</button>
@@ -618,6 +619,15 @@
       <button class="view-btn active" id="view-table" onclick="setView('table',this)" title="Table view">☰</button>
       <button class="view-btn" id="view-kanban" onclick="setView('kanban',this)" title="Kanban view">⊞</button>
     </div>
+  </div>
+
+  <!-- Import Log (latest) -->
+  <div class="table-wrap" style="margin-bottom:16px">
+    <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text3)">Latest Import</div>
+      <button class="btn-ghost" style="padding:4px 10px" onclick="openImportLog()">Open Log</button>
+    </div>
+    <div id="import-latest" style="padding:12px 16px;font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)">No imports yet</div>
   </div>
 
   <!-- Table View -->
@@ -818,6 +828,20 @@
 
 <div class="toast" id="toast"><span id="toast-msg">Saved</span></div>
 
+<!-- ─── IMPORT LOG MODAL ─── -->
+<div class="modal-overlay" id="import-log-modal" onclick="handleImportLogOverlay(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Import Log</div>
+        <div class="modal-subtitle">// Recent CSV imports and row-level issues</div>
+      </div>
+      <button class="modal-close" onclick="closeImportLog()">✕ Close</button>
+    </div>
+    <div id="import-log-list" style="margin-top:6px"></div>
+  </div>
+</div>
+
 <script>
 // ─── STATE ───
 let contacts = [];
@@ -826,6 +850,7 @@ let channelFilter = 'all';
 let currentView = 'table';
 let editingId = null;
 let detailId = null;
+let importLog = [];
 
 const STATUS_ORDER = ['overdue','followup','new','sent','replied','meeting','won','dead'];
 
@@ -834,9 +859,14 @@ function loadData() {
     const s = localStorage.getItem('outreach_contacts');
     if (s) contacts = JSON.parse(s);
   } catch(e) {}
+  try {
+    const l = localStorage.getItem('outreach_import_log');
+    if (l) importLog = JSON.parse(l);
+  } catch(e) {}
 }
 function saveData() {
   try { localStorage.setItem('outreach_contacts', JSON.stringify(contacts)); } catch(e) {}
+  try { localStorage.setItem('outreach_import_log', JSON.stringify(importLog)); } catch(e) {}
 }
 
 // ─── DATE UTILS ───
@@ -1247,21 +1277,30 @@ function handleImport(files) {
   const reader = new FileReader();
   reader.onload = () => {
     const text = reader.result || '';
-    const { headers, rows } = parseCSV(text);
+    showToast('Importing…');
+    const { headers, rows, delimiter } = parseCSV(text);
     if (!headers.length) { showToast('CSV missing headers'); return; }
 
     const idx = indexHeaders(headers);
     let added = 0, updated = 0, skipped = 0;
+    const errors = [];
 
-    rows.forEach(r => {
-      const name = (getCell(r, idx, ['name']) || '').trim();
-      const company = (getCell(r, idx, ['company']) || '').trim();
-      if (!name || !company) { skipped++; return; }
+    rows.forEach((r, i) => {
+      const first = (getCell(r, idx, ['first name','firstname','first']) || '').trim();
+      const last = (getCell(r, idx, ['last name','lastname','last']) || '').trim();
+      const fullName = (getCell(r, idx, ['name','full name','contact','person']) || '').trim();
+      const name = fullName || [first,last].filter(Boolean).join(' ');
+      const company = (getCell(r, idx, ['company','organization','org','account','business','employer']) || '').trim();
+      if (!name || !company) {
+        skipped++;
+        errors.push({ row: i + 2, reason: 'Missing name or company', raw: r });
+        return;
+      }
 
       const data = {
         name, company,
         title: (getCell(r, idx, ['title']) || '').trim(),
-        campaign: (getCell(r, idx, ['campaign','tag','label']) || '').trim(),
+        campaign: (getCell(r, idx, ['campaign','tag','label','campaign tag']) || '').trim(),
         url: (getCell(r, idx, ['url','linkedin / profile url','profile url']) || '').trim(),
         channel: (getCell(r, idx, ['channel']) || 'LinkedIn').trim() || 'LinkedIn',
         status: normalizeStatus(getCell(r, idx, ['status']) || 'new'),
@@ -1284,7 +1323,18 @@ function handleImport(files) {
       }
     });
 
-    saveData(); render();
+    const logEntry = {
+      id: Date.now(),
+      ts: new Date().toLocaleString(),
+      file: file.name || 'import.csv',
+      delimiter,
+      added, updated, skipped,
+      total: rows.length,
+      errors: errors.slice(0, 25),
+    };
+    importLog.unshift(logEntry);
+    importLog = importLog.slice(0, 20);
+    saveData(); render(); renderImportLog();
     showToast(`Imported ${added} added · ${updated} updated · ${skipped} skipped`);
   };
   reader.readAsText(file);
@@ -1293,13 +1343,18 @@ function handleImport(files) {
 
 function parseCSV(text) {
   const rows = [];
+  const firstLine = text.split(/\r?\n/)[0] || '';
+  const comma = (firstLine.match(/,/g) || []).length;
+  const semi = (firstLine.match(/;/g) || []).length;
+  const tab = (firstLine.match(/\t/g) || []).length;
+  const delimiter = tab ? '\t' : semi > comma ? ';' : ',';
   let row = [], cur = '', inQuotes = false;
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
     const next = text[i+1];
     if (ch === '"' && inQuotes && next === '"') { cur += '"'; i++; continue; }
     if (ch === '"') { inQuotes = !inQuotes; continue; }
-    if (ch === ',' && !inQuotes) { row.push(cur); cur = ''; continue; }
+    if (ch === delimiter && !inQuotes) { row.push(cur); cur = ''; continue; }
     if ((ch === '\n' || ch === '\r') && !inQuotes) {
       if (ch === '\r' && next === '\n') i++;
       row.push(cur); cur = '';
@@ -1311,13 +1366,13 @@ function parseCSV(text) {
   }
   if (cur.length || row.length) { row.push(cur); rows.push(row); }
   const headers = (rows.shift() || []).map(h => h.trim());
-  return { headers, rows };
+  return { headers, rows, delimiter: delimiter === '\t' ? 'tab' : delimiter === ';' ? 'semicolon' : 'comma' };
 }
 
 function indexHeaders(headers) {
   const idx = {};
   headers.forEach((h, i) => {
-    const key = h.toLowerCase().replace(/\s+/g, ' ').trim();
+    const key = h.toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
     idx[key] = i;
   });
   return idx;
@@ -1325,7 +1380,7 @@ function indexHeaders(headers) {
 
 function getCell(row, idx, keys) {
   for (const k of keys) {
-    const key = k.toLowerCase().replace(/\s+/g, ' ').trim();
+    const key = k.toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
     if (idx[key] !== undefined) return row[idx[key]] || '';
   }
   return '';
@@ -1344,6 +1399,48 @@ function normalizeStatus(s) {
   if (v.includes('won') || v.includes('closed')) return 'won';
   return v;
 }
+
+// ─── IMPORT LOG UI ───
+function renderImportLog() {
+  const latestEl = document.getElementById('import-latest');
+  if (latestEl) {
+    const latest = importLog[0];
+    if (!latest) latestEl.textContent = 'No imports yet';
+    else latestEl.textContent = `${latest.ts} · ${latest.file} · ${latest.added} added · ${latest.updated} updated · ${latest.skipped} skipped`;
+  }
+
+  const listEl = document.getElementById('import-log-list');
+  if (!listEl) return;
+  if (!importLog.length) {
+    listEl.innerHTML = `<div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)">No imports yet</div>`;
+    return;
+  }
+  listEl.innerHTML = importLog.map(log => {
+    const errHtml = (log.errors || []).map(e =>
+      `<div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text2);padding:4px 0;border-bottom:1px dashed var(--border)">
+        Row ${e.row}: ${e.reason}
+      </div>`
+    ).join('');
+    return `
+      <div style="border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:10px;background:var(--card)">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text)">${log.ts}</div>
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3)">${log.file} · ${log.delimiter}</div>
+        </div>
+        <div style="margin-top:6px;font-family:'DM Mono',monospace;font-size:11px;color:var(--text2)">
+          Total ${log.total} · ${log.added} added · ${log.updated} updated · ${log.skipped} skipped
+        </div>
+        ${errHtml ? `<div style="margin-top:8px">${errHtml}</div>` : `<div style="margin-top:8px;font-family:'DM Mono',monospace;font-size:10px;color:var(--accent2)">No row errors</div>`}
+      </div>`;
+  }).join('');
+}
+
+function openImportLog() {
+  renderImportLog();
+  document.getElementById('import-log-modal').classList.add('open');
+}
+function closeImportLog() { document.getElementById('import-log-modal').classList.remove('open'); }
+function handleImportLogOverlay(e) { if (e.target === document.getElementById('import-log-modal')) closeImportLog(); }
 
 // ─── HELPERS ───
 function statusLabel(s) {
@@ -1365,6 +1462,7 @@ function showToast(msg) {
 // ─── INIT ───
 loadData();
 render();
+renderImportLog();
 </script>
 </body>
 </html>
